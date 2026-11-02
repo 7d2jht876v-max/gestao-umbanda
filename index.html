@@ -49,11 +49,52 @@ document.querySelector('main').prepend(root);
 const status=root.querySelector('#cloud-status'),controls=root.querySelector('#cloud-controls');
 const localKey='gestao-umbanda-v1';
 let role=null;
-let recovering=window.location.hash.includes('type=recovery')||window.location.search.includes('type=recovery');
-client.auth.onAuthStateChange((event)=>{if(event==='PASSWORD_RECOVERY'){recovering=true;setTimeout(showRecoveryForm,0)}});
+let recovering=false;
+let recoveryReady=false;
+client.auth.onAuthStateChange((event)=>{if(event==='PASSWORD_RECOVERY'){recovering=true;recoveryReady=true;setTimeout(showRecoveryForm,0)}});
 function msg(s){status.textContent=s}
 function errorText(e){return e?.message||'Erro desconhecido'}
-function showRecoveryForm(){msg('Crie uma nova senha para sua conta.');controls.innerHTML='<form id="cloud-recover"><label>Nova senha (mínimo 8 caracteres)</label><input id="cloud-newpass" type="password" autocomplete="new-password" minlength="8" required><label>Confirmar nova senha</label><input id="cloud-confirmpass" type="password" autocomplete="new-password" minlength="8" required><button style="margin-top:12px">Salvar nova senha</button></form>';controls.querySelector('form').onsubmit=async e=>{e.preventDefault();const p=root.querySelector('#cloud-newpass').value,c=root.querySelector('#cloud-confirmpass').value;if(p!==c){msg('As senhas não coincidem.');return;}msg('Atualizando senha…');const {error}=await client.auth.updateUser({password:p});if(error){msg('Não foi possível alterar: '+errorText(error));return;}recovering=false;history.replaceState(null,'',location.pathname);msg('Senha alterada com sucesso.');await refresh()}}
+function showRecoveryForm(){
+recovering=true;
+if(!recoveryReady){msg('Validando o link de recuperação. Aguarde…');controls.innerHTML='';return;}
+msg('Link validado. Crie uma nova senha para sua conta.');
+controls.innerHTML='<form id="cloud-recover"><label>Nova senha (mínimo 8 caracteres)</label><input id="cloud-newpass" type="password" autocomplete="new-password" minlength="8" required><label>Confirmar nova senha</label><input id="cloud-confirmpass" type="password" autocomplete="new-password" minlength="8" required><button style="margin-top:12px">Salvar nova senha</button></form>';
+controls.querySelector('form').onsubmit=async e=>{
+e.preventDefault();
+const p=root.querySelector('#cloud-newpass').value,c=root.querySelector('#cloud-confirmpass').value;
+if(p!==c){msg('As senhas não coincidem.');return;}
+const {data:sessionData,error:sessionError}=await client.auth.getSession();
+if(sessionError||!sessionData.session){recoveryReady=false;controls.innerHTML='';msg('O link de recuperação não criou uma sessão válida ou expirou. Abra um novo link de recuperação no Safari e solicite outro e-mail se necessário.');return;}
+msg('Atualizando senha…');
+const {error}=await client.auth.updateUser({password:p});
+if(error){msg('Não foi possível alterar: '+errorText(error));return;}
+recovering=false;recoveryReady=false;history.replaceState(null,'',location.pathname);msg('Senha alterada com sucesso.');await refresh();
+};
+}
+async function initializeRecovery(){
+const params=new URLSearchParams(location.search),hash=new URLSearchParams(location.hash.replace(/^#/,''));
+const code=params.get('code'),tokenHash=params.get('token_hash'),type=params.get('type')||hash.get('type');
+const hasRecoveryHint=type==='recovery'||!!tokenHash;
+if(params.get('error')||hash.get('error')){msg('Link de recuperação inválido ou expirado. Solicite um novo e-mail e abra o link no Safari.');formLogin();return;}
+if(code||tokenHash){
+recovering=true;msg('Validando link de recuperação…');controls.innerHTML='';
+let error=null;
+if(code){({error}=await client.auth.exchangeCodeForSession(code));}
+else if(tokenHash){({error}=await client.auth.verifyOtp({token_hash:tokenHash,type:'recovery'}));}
+if(error){recovering=false;msg('Não foi possível validar o link: '+errorText(error)+'. Solicite um novo e-mail.');formLogin();return;}
+const {data:auth}=await client.auth.getSession();
+if(!auth.session){recovering=false;msg('Não foi possível criar a sessão de recuperação. Abra um novo link no Safari.');formLogin();return;}
+recoveryReady=true;history.replaceState(null,'',location.pathname);showRecoveryForm();return;
+}
+if(hasRecoveryHint){
+recovering=true;msg('Validando sessão de recuperação…');controls.innerHTML='';
+const {data:auth}=await client.auth.getSession();
+if(auth.session){recoveryReady=true;showRecoveryForm();}
+else{recovering=false;msg('Link de recuperação expirado ou inválido. Solicite outro e-mail e abra-o no Safari.');formLogin();}
+return;
+}
+await refresh();
+}
 function formLogin(){controls.innerHTML='<form id="cloud-login"><label>E-mail</label><input type="email" id="cloud-email" autocomplete="username" required><label>Senha</label><input type="password" id="cloud-password" autocomplete="current-password" required><button style="margin-top:12px">Entrar</button><button id="cloud-test" type="button" style="margin:12px 0 0 8px;background:#375b78">Testar conexão</button><button id="cloud-forgot" type="button" style="margin:12px 0 0 8px;background:#526b63">Esqueci minha senha</button></form>';controls.querySelector('#cloud-test').onclick=async()=>{msg('Testando conexão com Supabase…');try{const response=await fetch(cfg.url+'/auth/v1/health',{method:'GET',cache:'no-store'});msg('Servidor Supabase respondeu: HTTP '+response.status+'. '+(response.ok?'Conexão básica funcionando.':'Verifique o projeto e as permissões.'))}catch(e){msg('O servidor Supabase não respondeu ('+new URL(cfg.url).hostname+'). Verifique se o projeto está ativo e tente abrir o aplicativo no Safari. Detalhe: '+errorText(e))}};controls.querySelector('#cloud-forgot').onclick=async()=>{const email=root.querySelector('#cloud-email').value.trim();if(!email){msg('Informe seu e-mail acima para receber a recuperação.');return;}msg('Solicitando e-mail…');const {error}=await client.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});if(error){const detail=errorText(error);msg(/rate limit|too many|429/i.test(detail)?'O Supabase atingiu o limite de e-mails. Aguarde a liberação antes de tentar novamente. Não é necessário excluir seu usuário.':/load failed|failed to fetch|network/i.test(detail)?'Falha de conexão com Supabase. Seus dados locais permanecem neste navegador. Confira o projeto Supabase antes de tentar novamente; não repita o envio de e-mails.': 'Não foi possível enviar o e-mail: '+detail)}else msg('Se o e-mail estiver cadastrado, você receberá um link para criar nova senha. Verifique também o spam.')};controls.querySelector('form').onsubmit=async e=>{e.preventDefault();msg('Entrando…');const email=root.querySelector('#cloud-email').value,password=root.querySelector('#cloud-password').value;const {error}=await client.auth.signInWithPassword({email,password});if(error)msg('Não foi possível entrar: '+errorText(error));else await refresh()};}
 async function refresh(){if(recovering){showRecoveryForm();return;}const {data:{user},error}=await client.auth.getUser();if(error||!user){role=null;msg('Entre com seu e-mail e senha cadastrados no Supabase. Os dados atuais permanecem no iPhone.');formLogin();return;}
 const result=await client.from('perfis').select('perfil').eq('id',user.id).single();if(result.error){role=null;msg('Login realizado, mas o perfil não foi encontrado: '+errorText(result.error));controls.innerHTML='<button id="cloud-out">Sair</button>';root.querySelector('#cloud-out').onclick=logout;return;}
@@ -66,7 +107,7 @@ if(role==='admin')root.querySelector('#cloud-save').onclick=upload;
 async function logout(){await client.auth.signOut();await refresh()}
 async function load(){msg('Consultando nuvem…');const {data:row,error}=await client.from('gestao_dados').select('conteudo,atualizado_em').eq('id','templo').maybeSingle();if(error){msg('Falha ao consultar. Execute o SQL de configuração: '+errorText(error));return;}if(!row){msg('Ainda não há dados na nuvem. O administrador deve enviar um backup.');return;}if(!confirm('Substituir os dados deste aparelho pelos dados da nuvem? Faça um backup local antes.')){await refresh();return;}localStorage.setItem(localKey,JSON.stringify(row.conteudo));location.reload()}
 async function upload(){if(role!=='admin')return;const raw=localStorage.getItem(localKey);if(!raw){msg('Não há dados locais para enviar.');return;}let content;try{content=JSON.parse(raw)}catch{msg('Dados locais inválidos.');return;}if(!confirm('Enviar os dados deste aparelho para a nuvem? Isto substituirá o conjunto compartilhado para todos os médiuns.'))return;msg('Salvando na nuvem…');const {error}=await client.from('gestao_dados').upsert({id:'templo',conteudo:content,atualizado_em:new Date().toISOString()},{onConflict:'id'});if(error){msg('Não foi possível salvar. Verifique se executou o SQL: '+errorText(error));return;}msg('Dados enviados para a nuvem com sucesso. Para atualizar outros aparelhos, use Carregar dados da nuvem.')}
-refresh();
+initializeRecovery();
 })();
 
 </script></body></html>
