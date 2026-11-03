@@ -43,7 +43,7 @@ const configs={
 '👥 Médiuns':[['nome','Nome'],['email','E-mail de acesso do médium','email'],['cabeca','Orixá de cabeça'],['corpo','Orixá de corpo'],['cura','Doutor(a) da cura'],['pretosVelhos','Pretos velhos — entidade'],['marinheiros','Marinheiros — entidade'],['caboclos','Caboclos — entidade'],['ogum','Ogum — entidade'],['boiadeiros','Boiadeiros — entidade'],['eres','Erês — entidade'],['ciganos','Ciganos — entidade'],['entrada','Entrada no templo','date'],['funcao','Função / observações'],['valorMensalidade','Financeiro — valor da mensalidade (R$)','number'],['situacaoMensalidade','Situação da mensalidade','payment'],['referenciaMensalidade','Mês de referência','month'],['observacaoFinanceira','Observações financeiras']],
 '📅 Sessões':[['data','Data','date'],['tipo','Tipo de sessão','session'],['hora','Horário','time'],['observacoes','Observações'],['responsavel','Médium responsável','medium']],
 '🧹 Tarefas':[['data','Data','date'],['medium','Médium responsável','medium'],['tarefa','Atividade','task'],['status','Situação','status']],
-'💰 Financeiro':[['data','Data','date'],['tipo','Categoria','finance'],['descricao','Descrição'],['valor','Valor (R$)','number'],['medium','Médium relacionado','medium'] ],
+'💰 Financeiro':[['data','Data','date'],['tipo','Categoria','finance'],['descricao','Descrição'],['valor','Valor (R$)','number'],['medium','Médium relacionado','medium'],['mes','Mês de referência','month'] ],
 '📋 Atendimentos':[['data','Data','date'],['descricao','Descrição sem dados sensíveis'],['status','Situação','status']],
 '📢 Comunicados':[['data','Data','date'],['titulo','Título'],['mensagem','Mensagem']],
 '🎓 Estudos':[['tipo','Tipo','study'],['titulo','Título'],['link','Link (opcional)','url']],
@@ -77,6 +77,8 @@ const money=x=>Number(String(x||'0').replace(',','.'))||0;
 const entries=fin.filter(x=>x.tipo!=='Saída').reduce((s,x)=>s+money(x.valor),0);
 const expenses=fin.filter(x=>x.tipo==='Saída').reduce((s,x)=>s+money(x.valor),0);
 const fmt=x=>x.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const monthlyMediumRows=fin.filter(x=>x.tipo==='Mensalidade'&&x.medium&&x.mes);
+const monthlyMediumSummary=monthlyMediumRows.length?'<h3>Mensalidades por médium e mês</h3>'+monthlyMediumRows.slice().sort((a,b)=>String(b.mes).localeCompare(String(a.mes))||String(a.medium).localeCompare(String(b.medium))).map(x=>'<div class="dash-line"><span>'+esc(x.medium)+' • '+esc(x.mes)+'</span><strong>'+fmt(money(x.valor))+'</strong></div>').join(''):'';
 const categoryNames=[...new Set([...options.finance,...fin.map(x=>String(x.tipo||'Sem categoria').trim()||'Sem categoria')])];
 const categorySummary=categoryNames.map(name=>{const rows=fin.filter(x=>(String(x.tipo||'Sem categoria').trim()||'Sem categoria')===name);return {name,total:rows.reduce((sum,x)=>sum+money(x.valor),0),count:rows.length}}).filter(x=>x.count>0);
 const categoryHtml=categorySummary.length?categorySummary.map(x=>'<div class="dash-line"><span>'+esc(x.name)+' <small class="muted">('+x.count+')</small></span><strong>'+fmt(x.total)+'</strong></div>').join(''):'<p class="muted">Nenhum lançamento financeiro por categoria.</p>';
@@ -91,7 +93,7 @@ tile('Mensalidades pendentes',monthly.filter(x=>x.status!=='Pago').length,'🗓�
 tile('Compras',arr('🛒 Compras').filter(x=>x.status!=='Concluído').length,'🛒 Compras','Ver materiais')+
 '</div></div>'+
 '<div class="dash-two"><div class="card"><h2>Próximas sessões</h2>'+(upcoming.length?upcoming.map(s=>'<div class="dash-line"><strong>'+esc(s.tipo||'Sessão')+'</strong><span>'+date(s.data)+' • '+esc(s.hora||'Sem horário')+'</span></div>').join(''):'<p class="muted">Nenhuma sessão futura cadastrada.</p>')+'<button type="button" data-go="📅 Sessões">Ver sessões</button></div>'+
-'<div class="card"><h2>Resumo financeiro</h2><div class="dash-line"><span>Entradas registradas</span><strong>'+fmt(entries)+'</strong></div><div class="dash-line"><span>Saídas registradas</span><strong>'+fmt(expenses)+'</strong></div><div class="dash-line"><span>Saldo calculado</span><strong>'+fmt(entries-expenses)+'</strong></div><h3>Resumo por categoria</h3>'+categoryHtml+'<p class="muted">Valores dos registros locais; não é extrato bancário.</p><button type="button" data-go="💰 Financeiro">Ver financeiro</button></div></div>'+
+'<div class="card"><h2>Resumo financeiro</h2><div class="dash-line"><span>Entradas registradas</span><strong>'+fmt(entries)+'</strong></div><div class="dash-line"><span>Saídas registradas</span><strong>'+fmt(expenses)+'</strong></div><div class="dash-line"><span>Saldo calculado</span><strong>'+fmt(entries-expenses)+'</strong></div><h3>Resumo por categoria</h3>'+categoryHtml+monthlyMediumSummary+'<p class="muted">Valores dos registros locais; não é extrato bancário.</p><button type="button" data-go="💰 Financeiro">Ver financeiro</button></div></div>'+
 '<div class="card"><h2>Atividades por médium</h2>'+summaryTasks()+'</div>';
 }
 
