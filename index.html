@@ -74,9 +74,12 @@ const med=arr('👥 Médiuns'),sessions=arr('📅 Sessões'),tasks=arr('🧹 Tar
 const pending=tasks.filter(t=>t.status!=='Concluído');
 const upcoming=sessions.filter(s=>s.data&&s.data>=today).slice().sort((a,b)=>((a.data||'')+(a.hora||'')).localeCompare((b.data||'')+(b.hora||''))).slice(0,6);
 const money=x=>Number(String(x||'0').replace(',','.'))||0;
-const entries=fin.filter(x=>x.tipo==='Entrada'||String(x.tipo).startsWith('Sessão')).reduce((s,x)=>s+money(x.valor),0);
+const entries=fin.filter(x=>x.tipo!=='Saída').reduce((s,x)=>s+money(x.valor),0);
 const expenses=fin.filter(x=>x.tipo==='Saída').reduce((s,x)=>s+money(x.valor),0);
 const fmt=x=>x.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const categoryNames=[...new Set([...options.finance,...fin.map(x=>String(x.tipo||'Sem categoria').trim()||'Sem categoria')])];
+const categorySummary=categoryNames.map(name=>{const rows=fin.filter(x=>(String(x.tipo||'Sem categoria').trim()||'Sem categoria')===name);return {name,total:rows.reduce((sum,x)=>sum+money(x.valor),0),count:rows.length}}).filter(x=>x.count>0);
+const categoryHtml=categorySummary.length?categorySummary.map(x=>'<div class="dash-line"><span>'+esc(x.name)+' <small class="muted">('+x.count+')</small></span><strong>'+fmt(x.total)+'</strong></div>').join(''):'<p class="muted">Nenhum lançamento financeiro por categoria.</p>';
 const date=x=>{if(!x)return 'Sem data';const p=x.split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:x};
 const tile=(name,value,go,detail)=>'<button type="button" class="dash-tile" data-go="'+go+'"><span class="dash-label">'+name+'</span><strong class="dash-value">'+esc(value)+'</strong><small>'+detail+'</small></button>';
 return '<div class="card"><h2>Visão geral do terreiro</h2><p class="muted">Resumo dos registros salvos neste aparelho</p><div class="dash-grid">'+
