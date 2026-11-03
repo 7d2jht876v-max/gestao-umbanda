@@ -40,7 +40,7 @@ td button{margin:2px}
 const KEY='gestao-umbanda-v1';
 const configs={
 '🧭 Início':null,
-'👥 Médiuns':[['nome','Nome'],['cabeca','Orixá de cabeça'],['corpo','Orixá de corpo'],['cura','Doutor(a) da cura'],['funcao','Função / observações'],['entidades','Entidades de trabalho'],['linha','Linha principal (cadastro anterior)','linha'],['pretosVelhos','Pretos velhos — entidade'],['marinheiros','Marinheiros — entidade'],['caboclos','Caboclos — entidade'],['ogum','Ogum — entidade'],['boiadeiros','Boiadeiros — entidade'],['eres','Erês — entidade'],['ciganos','Ciganos — entidade'],['entrada','Entrada no templo','date']],
+'👥 Médiuns':[['nome','Nome'],['cabeca','Orixá de cabeça'],['corpo','Orixá de corpo'],['cura','Doutor(a) da cura'],['funcao','Função / observações'],['pretosVelhos','Pretos velhos — entidade'],['marinheiros','Marinheiros — entidade'],['caboclos','Caboclos — entidade'],['ogum','Ogum — entidade'],['boiadeiros','Boiadeiros — entidade'],['eres','Erês — entidade'],['ciganos','Ciganos — entidade'],['entrada','Entrada no templo','date']],
 '📅 Sessões':[['data','Data','date'],['tipo','Tipo de sessão','session'],['hora','Horário','time'],['observacoes','Observações'],['responsavel','Médium responsável','medium']],
 '🧹 Tarefas':[['data','Data','date'],['medium','Médium responsável','medium'],['tarefa','Atividade','task'],['status','Situação','status']],
 '💰 Financeiro':[['data','Data','date'],['tipo','Categoria','finance'],['descricao','Descrição'],['valor','Valor (R$)','number'],['medium','Médium relacionado','medium'] ],
@@ -57,7 +57,7 @@ session:['Sessão de cura','Sessão Exu','Sessão cigana','Sessão Cosme','Sess�
 task:['Varrer peji','Varrer assistência','Varrer espaços sagrados','Passar pano peji','Passar pano assistência','Passar pano espaços sagrados','Limpar banheiros','Tirar o lixo','Lavar louça','Decorar','Recolher as velas'],
 status:['Pendente','Em andamento','Concluído'],
 finance:['Entrada','Saída','Sessão Exu','Sessão cigana','Sessão especial'],
-linha:['Pretos velhos','Marinheiros','Caboclos','Ogum','Boiadeiros','Erês','Ciganos'],study:['Videoaula','Material de estudo','Outro'],payment:['Pendente','Pago']
+study:['Videoaula','Material de estudo','Outro'],payment:['Pendente','Pago']
 };
 const sections=Object.keys(configs);
 const blank=()=>Object.fromEntries(sections.filter(s=>configs[s]).map(s=>[s,[]]));
