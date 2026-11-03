@@ -33,7 +33,7 @@ td button{margin:2px}
 .backup-tools input{max-width:250px;font-size:13px}
 @media(min-width:850px){#entry{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:18px}#entry .actions{grid-column:1/-1}nav{flex-wrap:wrap}}
 @media(max-width:600px){header{padding:22px 16px}main{padding:12px 12px 28px}#cloud-access{margin:10px auto!important;padding:14px!important}nav{position:sticky;top:0;z-index:4;background:#f3f7f5;padding:10px 0;box-shadow:0 5px 10px #f3f7f5}nav button{padding:10px 12px;font-size:13px;min-height:43px}section{padding:12px;box-shadow:0 3px 14px #123e3710}.card{padding:14px}.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}table,tbody,tr,td{display:block}thead{display:none}tr{padding:12px;margin:12px 0;border:1px solid #dce8e3;border-radius:12px;background:#fff}td{display:block;padding:6px 0;border:0;overflow-wrap:anywhere}td::before{content:attr(data-label);display:block;font-size:12px;font-weight:700;color:#537366}td:last-child{display:flex;gap:8px;flex-wrap:wrap}td:last-child::before{display:none}td button{flex:1}#entry input,#entry select,#entry textarea{font-size:16px}footer{padding:18px 8px}}
-</style></head><body><header><h1>✦ Gestão Umbanda</h1><p>Organização do terreiro • Versão inicial</p></header><main><div class="notice"><strong>Atenção:</strong> os cadastros continuam salvos neste navegador. O login e a sincronização manual com Supabase exigem executar o SQL de configuração e testar as permissões. Antes disso, não cadastre informações pessoais sensíveis.</div><nav id="nav"></nav><div class="backup-tools"><button type="button" id="export">Baixar backup dos cadastros</button> <label style="font-size:13px">Importar backup <input type="file" id="import" accept=".json,application/json"></label></div><section id="view"></section><footer>Gestão Umbanda • Protótipo local • 2026</footer></main><script>
+.dash-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.dash-tile{display:flex;flex-direction:column;align-items:flex-start;gap:4px;background:#f0f7f3;color:#1b4c40;border:1px solid #d6e8de;border-radius:14px;text-align:left;padding:16px;min-height:110px}.dash-label{font-size:13px}.dash-value{font-size:28px;line-height:1.1}.dash-tile small{font-weight:400;color:#577367}.dash-two{display:grid;grid-template-columns:1fr 1fr;gap:16px}.dash-line{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 0;border-bottom:1px solid #e4eee8}.dash-line:last-of-type{margin-bottom:15px}@media(max-width:650px){.dash-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.dash-tile{padding:12px;min-height:100px}.dash-value{font-size:25px}.dash-two{grid-template-columns:1fr}}</style></head><body><header><h1>✦ Gestão Umbanda</h1><p>Organização do terreiro • Versão inicial</p></header><main><div class="notice"><strong>Atenção:</strong> os cadastros continuam salvos neste navegador. O login e a sincronização manual com Supabase exigem executar o SQL de configuração e testar as permissões. Antes disso, não cadastre informações pessoais sensíveis.</div><nav id="nav"></nav><div class="backup-tools"><button type="button" id="export">Baixar backup dos cadastros</button> <label style="font-size:13px">Importar backup <input type="file" id="import" accept=".json,application/json"></label></div><section id="view"></section><footer>Gestão Umbanda • Protótipo local • 2026</footer></main><script>
 
 (()=>{
 'use strict';
@@ -66,10 +66,36 @@ let current=sections[0];
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const save=()=>localStorage.setItem(KEY,JSON.stringify(data));
+
+function dashboard(){
+const arr=s=>data[s]||[];
+const today=new Date().toLocaleDateString('en-CA');
+const med=arr('👥 Médiuns'),sessions=arr('📅 Sessões'),tasks=arr('🧹 Tarefas'),fin=arr('💰 Financeiro'),monthly=arr('🗓️ Mensalidades');
+const pending=tasks.filter(t=>t.status!=='Concluído');
+const upcoming=sessions.filter(s=>s.data&&s.data>=today).slice().sort((a,b)=>((a.data||'')+(a.hora||'')).localeCompare((b.data||'')+(b.hora||''))).slice(0,6);
+const money=x=>Number(String(x||'0').replace(',','.'))||0;
+const entries=fin.filter(x=>x.tipo==='Entrada'||String(x.tipo).startsWith('Sessão')).reduce((s,x)=>s+money(x.valor),0);
+const expenses=fin.filter(x=>x.tipo==='Saída').reduce((s,x)=>s+money(x.valor),0);
+const fmt=x=>x.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const date=x=>{if(!x)return 'Sem data';const p=x.split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:x};
+const tile=(name,value,go,detail)=>'<button type="button" class="dash-tile" data-go="'+go+'"><span class="dash-label">'+name+'</span><strong class="dash-value">'+esc(value)+'</strong><small>'+detail+'</small></button>';
+return '<div class="card"><h2>Visão geral do terreiro</h2><p class="muted">Resumo dos registros salvos neste aparelho</p><div class="dash-grid">'+
+tile('Médiuns',med.length,'👥 Médiuns','Ver cadastros')+
+tile('Sessões',sessions.length,'📅 Sessões','Ver calendário')+
+tile('Tarefas pendentes',pending.length,'🧹 Tarefas','Ver responsáveis')+
+tile('Atendimentos',arr('📋 Atendimentos').length,'📋 Atendimentos','Ver agenda')+
+tile('Mensalidades pendentes',monthly.filter(x=>x.status!=='Pago').length,'🗓️ Mensalidades','Ver pagamentos')+
+tile('Compras',arr('🛒 Compras').filter(x=>x.status!=='Concluído').length,'🛒 Compras','Ver materiais')+
+'</div></div>'+
+'<div class="dash-two"><div class="card"><h2>Próximas sessões</h2>'+(upcoming.length?upcoming.map(s=>'<div class="dash-line"><strong>'+esc(s.tipo||'Sessão')+'</strong><span>'+date(s.data)+' • '+esc(s.hora||'Sem horário')+'</span></div>').join(''):'<p class="muted">Nenhuma sessão futura cadastrada.</p>')+'<button type="button" data-go="📅 Sessões">Ver sessões</button></div>'+
+'<div class="card"><h2>Resumo financeiro</h2><div class="dash-line"><span>Entradas registradas</span><strong>'+fmt(entries)+'</strong></div><div class="dash-line"><span>Saídas registradas</span><strong>'+fmt(expenses)+'</strong></div><div class="dash-line"><span>Saldo calculado</span><strong>'+fmt(entries-expenses)+'</strong></div><p class="muted">Valores dos registros locais; não é extrato bancário.</p><button type="button" data-go="💰 Financeiro">Ver financeiro</button></div></div>'+
+'<div class="card"><h2>Atividades por médium</h2>'+summaryTasks()+'</div>';
+}
+
 function render(){
 $('nav').innerHTML=sections.map(s=>'<button type="button" data-tab="'+esc(s)+'" aria-current="'+(s===current)+'">'+esc(s)+'</button>').join('');
 const fields=configs[current];if(!fields){
-$('view').innerHTML='<div class="card"><h2>Resumo geral</h2><div class="tiles">'+sections.slice(1).map(s=>'<div class="tile"><div>'+esc(s)+'</div><div class="stat">'+data[s].length+'</div></div>').join('')+'</div></div><div class="card"><h2>Atividades por médium</h2>'+summaryTasks()+'</div>';return;
+$('view').innerHTML=dashboard();$('view').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{current=b.dataset.go;render();window.scrollTo({top:0,behavior:'smooth'})});return;
 }
 $('view').innerHTML='<div class="card"><h2>'+esc(current)+'</h2><form id="entry">'+fields.map(([k,label,type])=>'<label for="f_'+k+'">'+esc(label)+'</label>'+control(k,type)).join('')+'<div class="actions"><button type="submit">Salvar cadastro</button></div></form></div><div class="card"><h2>Cadastros ('+data[current].length+')</h2>'+records(fields)+'</div>';
 $('entry').addEventListener('submit',e=>{e.preventDefault();const editId=$('entry').dataset.editId;const row=editId?data[current].find(x=>x.id===editId):{id:String(Date.now())+'-'+Math.random().toString(36).slice(2)};if(!row)return;for(const [k] of fields)row[k]=$('f_'+k).value.trim();if(!fields.some(([k])=>row[k])){alert('Preencha pelo menos um campo.');return}if(!editId)data[current].push(row);save();render()});
