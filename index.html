@@ -1,7 +1,39 @@
 <!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#164b43"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Gestão Umbanda"><title>Gestão Umbanda</title><style>
 :root{font-family:system-ui,-apple-system,sans-serif;color:#183a34;background:#f4f7f5}*{box-sizing:border-box}body{margin:0}header{background:#164b43;color:white;padding:24px 18px}h1{margin:0;font-size:26px}header p{margin:6px 0 0;opacity:.9}main{max-width:720px;margin:auto;padding:18px}.notice{background:#fff3d7;border:1px solid #e6c575;padding:13px;border-radius:12px;font-size:14px}nav{display:flex;gap:8px;overflow:auto;padding:16px 0}button{border:0;border-radius:10px;padding:12px 15px;background:#16685b;color:white;font-weight:650;cursor:pointer}nav button{white-space:nowrap;background:#e0ebe7;color:#164b43}nav button.active{background:#16685b;color:white}section{background:white;border-radius:14px;padding:18px;box-shadow:0 2px 12px #1232}h2{margin-top:0}label{display:block;font-weight:600;margin:14px 0 5px}input,select{width:100%;padding:12px;border:1px solid #bbc9c4;border-radius:9px;font:inherit}.item{padding:13px 0;border-bottom:1px solid #e2e9e6;overflow-wrap:anywhere}.item small{display:block;color:#61736d;margin-top:4px}.muted{color:#647770}.danger{background:#9e3c3c;margin-top:15px}footer{font-size:12px;text-align:center;color:#667b73;padding:24px}
-@media(max-width:600px){main{padding:12px}section{padding:12px}nav{position:sticky;top:0;background:#f4f7f5;z-index:3}table,thead,tbody,tr,td{display:block}thead{display:none}tr{border:1px solid #dce8e3;border-radius:12px;padding:12px;margin:12px 0}td{padding:6px 0;overflow-wrap:anywhere}td::before{content:attr(data-label);display:block;font-weight:700;color:#43665c;font-size:12px}textarea{width:100%;min-height:90px;border:1px solid #bbc9c4;border-radius:9px;font:inherit;padding:10px}} .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px}.tile{background:#edf5f1;padding:12px;border-radius:12px}.stat{font-size:24px;font-weight:700}.card{margin-bottom:14px}table{width:100%;border-collapse:collapse}td,th{padding:8px;text-align:left;border-bottom:1px solid #e4eae7}textarea{font:inherit}</style></head><body><header><h1>✦ Gestão Umbanda</h1><p>Organização do terreiro • Versão inicial</p></header><main><div class="notice"><strong>Atenção:</strong> os cadastros continuam salvos neste navegador. O login e a sincronização manual com Supabase exigem executar o SQL de configuração e testar as permissões. Antes disso, não cadastre informações pessoais sensíveis.</div><nav id="nav"></nav><div style="padding:10px 0"><button type="button" id="export">Baixar backup dos cadastros</button> <label style="font-size:13px">Importar backup <input type="file" id="import" accept=".json,application/json"></label></div><section id="view"></section><footer>Gestão Umbanda • Protótipo local • 2026</footer></main><script>
+@media(max-width:600px){main{padding:12px}section{padding:12px}nav{position:sticky;top:0;background:#f4f7f5;z-index:3}table,thead,tbody,tr,td{display:block}thead{display:none}tr{border:1px solid #dce8e3;border-radius:12px;padding:12px;margin:12px 0}td{padding:6px 0;overflow-wrap:anywhere}td::before{content:attr(data-label);display:block;font-weight:700;color:#43665c;font-size:12px}textarea{width:100%;min-height:90px;border:1px solid #bbc9c4;border-radius:9px;font:inherit;padding:10px}} .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px}.tile{background:#edf5f1;padding:12px;border-radius:12px}.stat{font-size:24px;font-weight:700}.card{margin-bottom:14px}table{width:100%;border-collapse:collapse}td,th{padding:8px;text-align:left;border-bottom:1px solid #e4eae7}textarea{font:inherit}
+/* Visual responsivo: iPhone e computador */
+:root{--verde:#15594d;--fundo:#f3f7f5;--borda:#d8e7e0}
+body{background:var(--fundo);line-height:1.5}
+header{padding:22px max(18px,calc((100vw - 1100px)/2));background:linear-gradient(125deg,#123e37,#246b5b)}
+header h1{font-size:clamp(25px,4vw,36px);letter-spacing:-.6px}
+main{max-width:1100px;padding:18px 20px 35px}
+#cloud-access{box-shadow:0 6px 22px #123e3710}
+nav{gap:9px;scrollbar-width:thin;padding:14px 0;align-items:center}
+nav button{border:1px solid #d6e7df;background:white;color:#23584c;border-radius:12px;padding:12px 14px;font-size:14px}
+nav button[aria-current="true"]{background:#17695a;color:#fff;border-color:#17695a}
+section{padding:22px;border-radius:18px}
+.card{background:#fff;border:1px solid #e2ece7;border-radius:15px;padding:18px;margin:0 0 16px}
+.card h2{font-size:clamp(21px,3vw,26px);margin:0 0 14px}
+.tile{border:1px solid #dcebe3;background:#f2f8f5}
+#entry{display:grid;grid-template-columns:1fr;gap:6px}
+#entry label{margin:10px 0 0}
+#entry input,#entry select,#entry textarea{width:100%;max-width:100%;min-height:46px;font-size:16px;background:#fff;border:1px solid #bbd0c6;border-radius:10px;padding:11px}
+#entry textarea{min-height:94px;resize:vertical}
+#entry .actions{margin-top:12px}
+button{min-height:44px;transition:filter .15s ease}
+button:active{filter:brightness(.93)}
+table{font-size:14px}
+th{color:#355c51;background:#f2f8f5}
+td,th{vertical-align:top}
+td button{margin:2px}
+#export{background:#285d50}
+.backup-tools{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:8px 0 16px}
+.backup-tools label{margin:0;font-size:13px}
+.backup-tools input{max-width:250px;font-size:13px}
+@media(min-width:850px){#entry{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:18px}#entry .actions{grid-column:1/-1}nav{flex-wrap:wrap}}
+@media(max-width:600px){header{padding:22px 16px}main{padding:12px 12px 28px}#cloud-access{margin:10px auto!important;padding:14px!important}nav{position:sticky;top:0;z-index:4;background:#f3f7f5;padding:10px 0;box-shadow:0 5px 10px #f3f7f5}nav button{padding:10px 12px;font-size:13px;min-height:43px}section{padding:12px;box-shadow:0 3px 14px #123e3710}.card{padding:14px}.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}table,tbody,tr,td{display:block}thead{display:none}tr{padding:12px;margin:12px 0;border:1px solid #dce8e3;border-radius:12px;background:#fff}td{display:block;padding:6px 0;border:0;overflow-wrap:anywhere}td::before{content:attr(data-label);display:block;font-size:12px;font-weight:700;color:#537366}td:last-child{display:flex;gap:8px;flex-wrap:wrap}td:last-child::before{display:none}td button{flex:1}#entry input,#entry select,#entry textarea{font-size:16px}footer{padding:18px 8px}}
+</style></head><body><header><h1>✦ Gestão Umbanda</h1><p>Organização do terreiro • Versão inicial</p></header><main><div class="notice"><strong>Atenção:</strong> os cadastros continuam salvos neste navegador. O login e a sincronização manual com Supabase exigem executar o SQL de configuração e testar as permissões. Antes disso, não cadastre informações pessoais sensíveis.</div><nav id="nav"></nav><div class="backup-tools"><button type="button" id="export">Baixar backup dos cadastros</button> <label style="font-size:13px">Importar backup <input type="file" id="import" accept=".json,application/json"></label></div><section id="view"></section><footer>Gestão Umbanda • Protótipo local • 2026</footer></main><script>
 
 (()=>{
 'use strict';
