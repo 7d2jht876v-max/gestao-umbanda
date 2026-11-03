@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#164b43"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Gestão Umbanda"><title>Gestão Umbanda</title><style>
+:root{font-family:system-ui,-apple-system,sans-serif;color:#183a34;background:#f4f7f5}*{box-sizing:border-box}body{margin:0}header{background:#164b43;color:white;padding:24px 18px}h1{margin:0;font-size:26px}header p{margin:6px 0 0;opacity:.9}main{max-width:720px;margin:auto;padding:18px}.notice{background:#fff3d7;border:1px solid #e6c575;padding:13px;border-radius:12px;font-size:14px}nav{display:flex;gap:8px;overflow:auto;padding:16px 0}button{border:0;border-radius:10px;padding:12px 15px;background:#16685b;color:white;font-weight:650;cursor:pointer}nav button{white-space:nowrap;background:#e0ebe7;color:#164b43}nav button.active{background:#16685b;color:white}section{background:white;border-radius:14px;padding:18px;box-shadow:0 2px 12px #1232}h2{margin-top:0}label{display:block;font-weight:600;margin:14px 0 5px}input,select{width:100%;padding:12px;border:1px solid #bbc9c4;border-radius:9px;font:inherit}.item{padding:13px 0;border-bottom:1px solid #e2e9e6;overflow-wrap:anywhere}.item small{display:block;color:#61736d;margin-top:4px}.muted{color:#647770}.danger{background:#9e3c3c;margin-top:15px}footer{font-size:12px;text-align:center;color:#667b73;padding:24px}
+@media(max-width:600px){main{padding:12px}section{padding:12px}nav{position:sticky;top:0;background:#f4f7f5;z-index:3}table,thead,tbody,tr,td{display:block}thead{display:none}tr{border:1px solid #dce8e3;border-radius:12px;padding:12px;margin:12px 0}td{padding:6px 0;overflow-wrap:anywhere}td::before{content:attr(data-label);display:block;font-weight:700;color:#43665c;font-size:12px}textarea{width:100%;min-height:90px;border:1px solid #bbc9c4;border-radius:9px;font:inherit;padding:10px}} .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px}.tile{background:#edf5f1;padding:12px;border-radius:12px}.stat{font-size:24px;font-weight:700}.card{margin-bottom:14px}table{width:100%;border-collapse:collapse}td,th{padding:8px;text-align:left;border-bottom:1px solid #e4eae7}textarea{font:inherit}
+/* Visual responsivo: iPhone e computador */
+:root{--verde:#15594d;--fundo:#f3f7f5;--borda:#d8e7e0}
+body{background:var(--fundo);line-height:1.5}
+header{padding:22px max(18px,calc((100vw - 1100px)/2));background:linear-gradient(125deg,#123e37,#246b5b)}
+header h1{font-size:clamp(25px,4vw,36px);letter-spacing:-.6px}
+main{max-width:1100px;padding:18px 20px 35px}
+#cloud-access{box-shadow:0 6px 22px #123e3710}
+nav{gap:9px;scrollbar-width:thin;padding:14px 0;align-items:center}
+nav button{border:1px solid #d6e7df;background:white;color:#23584c;border-radius:12px;padding:12px 14px;font-size:14px}
+nav button[aria-current="true"]{background:#17695a;color:#fff;border-color:#17695a}
+section{padding:22px;border-radius:18px}
+.card{background:#fff;border:1px solid #e2ece7;border-radius:15px;padding:18px;margin:0 0 16px}
+.card h2{font-size:clamp(21px,3vw,26px);margin:0 0 14px}
+.tile{border:1px solid #dcebe3;background:#f2f8f5}
+#entry{display:grid;grid-template-columns:1fr;gap:6px}
+#entry label{margin:10px 0 0}
+#entry input,#entry select,#entry textarea{width:100%;max-width:100%;min-height:46px;font-size:16px;background:#fff;border:1px solid #bbd0c6;border-radius:10px;padding:11px}
+#entry textarea{min-height:94px;resize:vertical}
+#entry .actions{margin-top:12px}
+button{min-height:44px;transition:filter .15s ease}
+button:active{filter:brightness(.93)}
+table{font-size:14px}
+th{color:#355c51;background:#f2f8f5}
+td,th{vertical-align:top}
+td button{margin:2px}
+#export{background:#285d50}
+.backup-tools{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:8px 0 16px}
+.backup-tools label{margin:0;font-size:13px}
+.backup-tools input{max-width:250px;font-size:13px}
+@media(min-width:850px){#entry{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:18px}#entry .actions{grid-column:1/-1}nav{flex-wrap:wrap}}
+@media(max-width:600px){header{padding:22px 16px}main{padding:12px 12px 28px}#cloud-access{margin:10px auto!important;padding:14px!important}nav{position:sticky;top:0;z-index:4;background:#f3f7f5;padding:10px 0;box-shadow:0 5px 10px #f3f7f5}nav button{padding:10px 12px;font-size:13px;min-height:43px}section{padding:12px;box-shadow:0 3px 14px #123e3710}.card{padding:14px}.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}table,tbody,tr,td{display:block}thead{display:none}tr{padding:12px;margin:12px 0;border:1px solid #dce8e3;border-radius:12px;background:#fff}td{display:block;padding:6px 0;border:0;overflow-wrap:anywhere}td::before{content:attr(data-label);display:block;font-size:12px;font-weight:700;color:#537366}td:last-child{display:flex;gap:8px;flex-wrap:wrap}td:last-child::before{display:none}td button{flex:1}#entry input,#entry select,#entry textarea{font-size:16px}footer{padding:18px 8px}}
+.dash-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.dash-tile{display:flex;flex-direction:column;align-items:flex-start;gap:4px;background:#f0f7f3;color:#1b4c40;border:1px solid #d6e8de;border-radius:14px;text-align:left;padding:16px;min-height:110px}.dash-label{font-size:13px}.dash-value{font-size:28px;line-height:1.1}.dash-tile small{font-weight:400;color:#577367}.dash-two{display:grid;grid-template-columns:1fr 1fr;gap:16px}.dash-line{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 0;border-bottom:1px solid #e4eee8}.dash-line:last-of-type{margin-bottom:15px}@media(max-width:650px){.dash-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.dash-tile{padding:12px;min-height:100px}.dash-value{font-size:25px}.dash-two{grid-template-columns:1fr}}.medium-finance-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.medium-finance-item{border:1px solid #dbe9e2;background:#f6faf7;border-radius:12px;padding:15px;display:grid;gap:6px}.medium-finance-item>strong{font-size:18px;color:#1b574a}.medium-finance-item small{font-size:12px}.finance-heading{margin:22px 0 0;padding-top:18px;border-top:2px solid #dbe9e2;color:#16594c}.finance-note{margin:0 0 5px;font-size:13px}@media(min-width:850px){#entry .finance-heading,#entry .finance-note{grid-column:1/-1}}.drive-link{display:inline-block;background:#16685b;color:white;text-decoration:none;padding:13px 18px;border-radius:10px;font-weight:700;margin:6px 0}.drive-link:focus-visible{outline:3px solid #8dd2bf}.study-watch{display:inline-block;background:#17695a;color:#fff;text-decoration:none;padding:12px 15px;border-radius:10px;font-weight:700}.lesson-search{width:100%;padding:12px 14px;border:1px solid #b9cec4;border-radius:10px;font-size:16px;margin:4px 0 14px}tbody tr[hidden]{display:none!important}</style></head><body><header><h1>✦ Gestão Umbanda</h1><p>Organização do terreiro • Versão inicial</p></header><main><div class="notice"><strong>Atenção:</strong> os cadastros continuam salvos neste navegador. O login e a sincronização manual com Supabase exigem executar o SQL de configuração e testar as permissões. Antes disso, não cadastre informações pessoais sensíveis.</div><nav id="nav"></nav><div class="backup-tools"><button type="button" id="export">Baixar backup dos cadastros</button> <label style="font-size:13px">Importar backup <input type="file" id="import" accept=".json,application/json"></label></div><section id="view"></section><footer>Gestão Umbanda • Protótipo local • 2026</footer></main><script>
+
+(()=>{
+'use strict';
+const KEY='gestao-umbanda-v1';
+const configs={
+'🧭 Início':null,
+'👥 Médiuns':[['nome','Nome'],['cabeca','Orixá de cabeça'],['corpo','Orixá de corpo'],['cura','Doutor(a) da cura'],['pretosVelhos','Pretos velhos — entidade'],['marinheiros','Marinheiros — entidade'],['caboclos','Caboclos — entidade'],['ogum','Ogum — entidade'],['boiadeiros','Boiadeiros — entidade'],['eres','Erês — entidade'],['ciganos','Ciganos — entidade'],['entrada','Entrada no templo','date'],['funcao','Função / observações'],['valorMensalidade','Financeiro — valor da mensalidade (R$)','number'],['situacaoMensalidade','Situação da mensalidade','payment'],['referenciaMensalidade','Mês de referência','month'],['observacaoFinanceira','Observações financeiras']],
+'📅 Sessões':[['data','Data','date'],['tipo','Tipo de sessão','session'],['hora','Horário','time'],['observacoes','Observações'],['responsavel','Médium responsável','medium']],
+'🧹 Tarefas':[['data','Data','date'],['medium','Médium responsável','medium'],['tarefa','Atividade','task'],['status','Situação','status']],
+'💰 Financeiro':[['data','Data','date'],['tipo','Categoria','finance'],['descricao','Descrição'],['valor','Valor (R$)','number'],['medium','Médium relacionado','medium'] ],
+'📋 Atendimentos':[['data','Data','date'],['descricao','Descrição sem dados sensíveis'],['status','Situação','status']],
+'📢 Comunicados':[['data','Data','date'],['titulo','Título'],['mensagem','Mensagem']],
+'🎓 Estudos':[['tipo','Tipo','study'],['titulo','Título'],['link','Link (opcional)','url']],
+'🛒 Compras':[['item','Material'],['quantidade','Quantidade'],['status','Situação','status']],
+'🗓️ Mensalidades':[['medium','Médium','medium'],['mes','Mês de referência','month'],['valor','Valor (R$)','number'],['status','Situação','payment']],
+'🎥 Videoaulas':[['titulo','Título'],['link','Link da aula','url'],['descricao','Descrição']],
+'🌿 Axés':[['semana','Semana / data'],['titulo','Nome do axé'],['observacoes','Materiais e orientações']]
+};
+const options={
+session:['Sessão de cura','Sessão Exu','Sessão cigana','Sessão Cosme','Sessão Ogum','Sessão boiadeiros','Sessão pretos velhos','Sessão de marinheiros','Sessão especial'],
+task:['Varrer peji','Varrer assistência','Varrer espaços sagrados','Passar pano peji','Passar pano assistência','Passar pano espaços sagrados','Limpar banheiros','Tirar o lixo','Lavar louça','Decorar','Recolher as velas'],
+status:['Pendente','Em andamento','Concluído'],
+finance:['Entrada','Saída','Sessão Exu','Sessão cigana','Sessão especial','Camarinhas'],
+study:['Videoaula','Material de estudo','Outro'],payment:['Pendente','Pago']
+};
+const sections=Object.keys(configs);
+const blank=()=>Object.fromEntries(sections.filter(s=>configs[s]).map(s=>[s,[]]));
+let data=blank();try{const d=JSON.parse(localStorage.getItem(KEY)||'null');if(d&&typeof d==='object')for(const s of Object.keys(data))if(Array.isArray(d[s]))data[s]=d[s]}catch(e){}
+let current=sections[0];
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const save=()=>localStorage.setItem(KEY,JSON.stringify(data));
+
+function dashboard(){
+const arr=s=>data[s]||[];
+const today=new Date().toLocaleDateString('en-CA');
+const med=arr('👥 Médiuns'),sessions=arr('📅 Sessões'),tasks=arr('🧹 Tarefas'),fin=arr('💰 Financeiro'),monthly=arr('🗓️ Mensalidades');
+const pending=tasks.filter(t=>t.status!=='Concluído');
+const upcoming=sessions.filter(s=>s.data&&s.data>=today).slice().sort((a,b)=>((a.data||'')+(a.hora||'')).localeCompare((b.data||'')+(b.hora||''))).slice(0,6);
+const money=x=>Number(String(x||'0').replace(',','.'))||0;
+const entries=fin.filter(x=>x.tipo==='Entrada'||String(x.tipo).startsWith('Sessão')).reduce((s,x)=>s+money(x.valor),0);
+const expenses=fin.filter(x=>x.tipo==='Saída').reduce((s,x)=>s+money(x.valor),0);
+const fmt=x=>x.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const date=x=>{if(!x)return 'Sem data';const p=x.split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:x};
+const tile=(name,value,go,detail)=>'<button type="button" class="dash-tile" data-go="'+go+'"><span class="dash-label">'+name+'</span><strong class="dash-value">'+esc(value)+'</strong><small>'+detail+'</small></button>';
+return '<div class="card"><h2>Visão geral do terreiro</h2><p class="muted">Resumo dos registros salvos neste aparelho</p><div class="dash-grid">'+
+tile('Médiuns',med.length,'👥 Médiuns','Ver cadastros')+
+tile('Sessões',sessions.length,'📅 Sessões','Ver calendário')+
+tile('Tarefas pendentes',pending.length,'🧹 Tarefas','Ver responsáveis')+
+tile('Atendimentos',arr('📋 Atendimentos').length,'📋 Atendimentos','Ver agenda')+
+tile('Mensalidades pendentes',monthly.filter(x=>x.status!=='Pago').length,'🗓️ Mensalidades','Ver pagamentos')+
+tile('Compras',arr('🛒 Compras').filter(x=>x.status!=='Concluído').length,'🛒 Compras','Ver materiais')+
+'</div></div>'+
+'<div class="dash-two"><div class="card"><h2>Próximas sessões</h2>'+(upcoming.length?upcoming.map(s=>'<div class="dash-line"><strong>'+esc(s.tipo||'Sessão')+'</strong><span>'+date(s.data)+' • '+esc(s.hora||'Sem horário')+'</span></div>').join(''):'<p class="muted">Nenhuma sessão futura cadastrada.</p>')+'<button type="button" data-go="📅 Sessões">Ver sessões</button></div>'+
+'<div class="card"><h2>Resumo financeiro</h2><div class="dash-line"><span>Entradas registradas</span><strong>'+fmt(entries)+'</strong></div><div class="dash-line"><span>Saídas registradas</span><strong>'+fmt(expenses)+'</strong></div><div class="dash-line"><span>Saldo calculado</span><strong>'+fmt(entries-expenses)+'</strong></div><p class="muted">Valores dos registros locais; não é extrato bancário.</p><button type="button" data-go="💰 Financeiro">Ver financeiro</button></div></div>'+
+'<div class="card"><h2>Atividades por médium</h2>'+summaryTasks()+'</div>';
+}
+
+function financeiroPorMedium(){
+const meds=data['👥 Médiuns']||[],mov=data['💰 Financeiro']||[],mens=data['🗓️ Mensalidades']||[];
+const money=v=>{const n=Number(String(v??0).replace(',','.'));return Number.isFinite(n)?n:0};
+const brl=v=>v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+if(!meds.length)return '<div class="card"><h2>Financeiro por médium</h2><p class="muted">Cadastre um médium para visualizar seu resumo financeiro.</p></div>';
+return '<div class="card"><h2>Financeiro por médium</h2><p class="muted">Resumo dos lançamentos e mensalidades associados ao nome de cada médium.</p><div class="medium-finance-grid">'+meds.map(m=>{
+const nome=String(m.nome||'').trim(),rows=mov.filter(x=>String(x.medium||'').trim()===nome),dues=mens.filter(x=>String(x.medium||'').trim()===nome);
+const entradas=rows.filter(x=>x.tipo!=='Saída').reduce((a,x)=>a+money(x.valor),0);
+const saidas=rows.filter(x=>x.tipo==='Saída').reduce((a,x)=>a+money(x.valor),0);
+const pago=dues.filter(x=>x.status==='Pago').reduce((a,x)=>a+money(x.valor),0);
+const pendente=dues.filter(x=>x.status!=='Pago').reduce((a,x)=>a+money(x.valor),0);
+return '<div class="medium-finance-item"><strong>'+esc(nome||'Sem nome')+'</strong><div>Entradas: <b>'+brl(entradas)+'</b></div><div>Saídas: <b>'+brl(saidas)+'</b></div><div>Saldo dos lançamentos: <b>'+brl(entradas-saidas)+'</b></div><div>Mensalidades pagas: <b>'+brl(pago)+'</b></div><div>Mensalidades pendentes: <b>'+brl(pendente)+'</b></div><small class="muted">Mensalidades são exibidas separadamente para evitar dupla contagem.</small></div>'
+}).join('')+'</div></div>';
+}
+function render(){
+$('nav').innerHTML=sections.map(s=>'<button type="button" data-tab="'+esc(s)+'" aria-current="'+(s===current)+'">'+esc(s)+'</button>').join('');
+const fields=configs[current];if(!fields){
+$('view').innerHTML=dashboard();$('view').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{current=b.dataset.go;render();window.scrollTo({top:0,behavior:'smooth'})});return;
+}
+$('view').innerHTML='<div class="card"><h2>'+esc(current)+'</h2><form id="entry">'+fields.map(([k,label,type])=>(k==='valorMensalidade'?'<h3 class="finance-heading">💰 Financeiro por médium</h3><p class="muted finance-note">Informações financeiras individuais deste médium.</p>':'')+'<label for="f_'+k+'">'+esc(label)+'</label>'+control(k,type)).join('')+'<div class="actions"><button type="submit">Salvar cadastro</button></div></form></div>'+(current==='🎓 Estudos'?'<div class="card"><h2>🎥 Videoaulas no Google Drive</h2><p>Abra a pasta compartilhada com os materiais de estudo.</p><a class="drive-link" href="https://drive.google.com/drive/folders/1pm3WiPbSlDL9pyxyfvGcfkg2ETBr0Xyj" target="_blank" rel="noopener noreferrer">Abrir pasta de videoaulas</a><p class="muted">O acesso aos vídeos depende das permissões configuradas no Google Drive.</p></div>':'')+'<div class="card"><h2>Cadastros ('+data[current].length+')</h2>'+records(fields)+'</div>'+(current==='👥 Médiuns'?financeiroPorMedium():'');
+ativarAulas();filtroAulas();
+$('entry').addEventListener('submit',e=>{e.preventDefault();const editId=$('entry').dataset.editId;const row=editId?data[current].find(x=>x.id===editId):{id:String(Date.now())+'-'+Math.random().toString(36).slice(2)};if(!row)return;for(const [k] of fields)row[k]=$('f_'+k).value.trim();if(!fields.some(([k])=>row[k])){alert('Preencha pelo menos um campo.');return}if(!editId)data[current].push(row);save();render()});
+}
+function control(k,type){if(type==='medium'){const names=data['👥 Médiuns'].map(m=>m.nome).filter(Boolean);return '<select id="f_medium"><option value="">Selecione o médium</option>'+names.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('')+'</select>'}if(options[type])return '<select id="f_'+k+'"><option value="">Selecione</option>'+options[type].map(v=>'<option>'+esc(v)+'</option>').join('')+'</select>';if(k==='observacoes'||k==='mensagem'||k==='funcao'||k==='entidades'||k==='descricao'||k==='observacaoFinanceira')return '<textarea id="f_'+k+'"></textarea>';return '<input id="f_'+k+'" type="'+(type||'text')+'" '+(type==='number'?'step="0.01"':'')+'>'}
+function records(fields){const rows=data[current];if(!rows.length)return '<p class="muted">Nenhum cadastro ainda.</p>';return '<div style="overflow-x:auto"><table><thead><tr>'+fields.map(f=>'<th>'+esc(f[1])+'</th>').join('')+'<th>Ação</th></tr></thead><tbody>'+rows.map(r=>'<tr>'+fields.map(([k,label])=>'<td data-label="'+esc(label)+'">'+esc(r[k])+'</td>').join('')+'<td><button type="button" data-edit="'+esc(r.id)+'">Editar</button> <button type="button" class="danger" data-delete="'+esc(r.id)+'">Excluir</button></td></tr>').join('')+'</tbody></table></div>'}
+function filtroAulas(){
+if(current!=='🎓 Estudos'&&current!=='🎥 Videoaulas')return;
+const recordsCard=[...document.querySelectorAll('#view .card')].find(x=>x.querySelector('table'));
+if(!recordsCard)return;
+const field=document.createElement('input');
+field.type='search';field.placeholder='🔎 Buscar aula pelo título';field.setAttribute('aria-label','Buscar videoaulas');field.className='lesson-search';
+const table=recordsCard.querySelector('table');
+table.parentElement.before(field);
+field.addEventListener('input',()=>{
+const q=field.value.toLocaleLowerCase('pt-BR').trim();
+for(const row of table.querySelectorAll('tbody tr'))row.hidden=!row.textContent.toLocaleLowerCase('pt-BR').includes(q);
+});
+}
+function ativarAulas(){
+if(current!=='🎓 Estudos'&&current!=='🎥 Videoaulas')return;
+const labels=[...document.querySelectorAll('#view td[data-label]')];
+for(const cell of labels){
+if(!['Link (opcional)','Link da aula'].includes(cell.getAttribute('data-label')))continue;
+const url=cell.textContent.trim();
+if(!url.startsWith('https://drive.google.com/'))continue;
+const link=document.createElement('a');
+link.href=url;link.target='_blank';link.rel='noopener noreferrer';
+link.textContent='▶ Assistir';link.className='study-watch';
+cell.replaceChildren(link);
+}
+}
+function summaryTasks(){const tasks=data['🧹 Tarefas'];if(!tasks.length)return '<p class="muted">Cadastre tarefas e responsáveis para visualizar o resumo.</p>';return '<ul>'+tasks.map(t=>'<li>'+esc(t.medium||'Sem responsável')+' — '+esc(t.tarefa||'Atividade')+' ('+esc(t.status||'Pendente')+')</li>').join('')+'</ul>'}
+$('nav').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b){current=b.dataset.tab;render()}});
+$('view').addEventListener('click',e=>{const edit=e.target.closest('[data-edit]');if(edit){const row=data[current].find(r=>r.id===edit.dataset.edit);if(!row)return;$('entry').dataset.editId=row.id;for(const [k] of configs[current])$('f_'+k).value=row[k]||'';$('entry').querySelector('button[type=submit]').textContent='Salvar alterações';$('entry').scrollIntoView({behavior:'smooth',block:'start'});return}const b=e.target.closest('[data-delete]');if(!b)return;if(!confirm('Excluir este cadastro desta versão?'))return;data[current]=data[current].filter(r=>r.id!==b.dataset.delete);save();render()});
+document.getElementById('export').onclick=()=>{const blob=new Blob([JSON.stringify({version:2,exportedAt:new Date().toISOString(),records:data},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='backup-gestao-umbanda-'+new Date().toISOString().slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+document.getElementById('import').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const o=JSON.parse(await f.text());if(o.version!==2||!o.records||!sections.slice(1).every(s=>Array.isArray(o.records[s])))throw Error('Formato inválido');if(!confirm('Substituir os cadastros locais desta versão pelos do backup?'))return;data=Object.fromEntries(sections.slice(1).map(s=>[s,o.records[s]]));save();render();alert('Backup importado.')}catch(err){alert('Não foi possível importar: '+err.message)}finally{e.target.value=''}};
+render();
+})();
+
+</script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script><script src="./supabase-config.js"></script><script>
+/* Gestão Umbanda: login e sincronização explícita; exige executar supabase-setup.sql.
+   Dados locais existentes nunca são enviados automaticamente. */
+(()=>{'use strict';
+const cfg=window.GESTAO_UMBANDA_SUPABASE;
+const supa=window.supabase;
+if(!cfg||!cfg.publishableKey||!supa){return;}
+const client=supa.createClient(cfg.url,cfg.publishableKey);
+const root=document.createElement('div');
+root.id='cloud-access';
+root.style.cssText='max-width:720px;margin:14px auto;padding:14px;background:#fff;border:2px solid #b8d2c8;border-radius:12px;font:15px system-ui';
+root.innerHTML='<h2 style="margin:0 0 8px">☁️ Acesso seguro</h2><p id="cloud-status">Verificando acesso…</p><div id="cloud-controls"></div>';
+document.querySelector('main').prepend(root);
+const status=root.querySelector('#cloud-status'),controls=root.querySelector('#cloud-controls');
+const localKey='gestao-umbanda-v1';
+let role=null;
+let recovering=false;
+let recoveryReady=false;
+client.auth.onAuthStateChange((event)=>{if(event==='PASSWORD_RECOVERY'){recovering=true;recoveryReady=true;setTimeout(showRecoveryForm,0)}});
+function msg(s){status.textContent=s}
+function errorText(e){return e?.message||'Erro desconhecido'}
+function showRecoveryForm(){
+recovering=true;
+if(!recoveryReady){msg('Validando o link de recuperação. Aguarde…');controls.innerHTML='';return;}
+msg('Link validado. Crie uma nova senha para sua conta.');
+controls.innerHTML='<form id="cloud-recover"><label>Nova senha (mínimo 8 caracteres)</label><input id="cloud-newpass" type="password" autocomplete="new-password" minlength="8" required><label>Confirmar nova senha</label><input id="cloud-confirmpass" type="password" autocomplete="new-password" minlength="8" required><button style="margin-top:12px">Salvar nova senha</button></form>';
+controls.querySelector('form').onsubmit=async e=>{
+e.preventDefault();
+const p=root.querySelector('#cloud-newpass').value,c=root.querySelector('#cloud-confirmpass').value;
+if(p!==c){msg('As senhas não coincidem.');return;}
+const {data:sessionData,error:sessionError}=await client.auth.getSession();
+if(sessionError||!sessionData.session){recoveryReady=false;controls.innerHTML='';msg('O link de recuperação não criou uma sessão válida ou expirou. Abra um novo link de recuperação no Safari e solicite outro e-mail se necessário.');return;}
+msg('Atualizando senha…');
+const {error}=await client.auth.updateUser({password:p});
+if(error){msg('Não foi possível alterar: '+errorText(error));return;}
+recovering=false;recoveryReady=false;history.replaceState(null,'',location.pathname);msg('Senha alterada com sucesso.');await refresh();
+};
+}
+async function initializeRecovery(){
+const params=new URLSearchParams(location.search),hash=new URLSearchParams(location.hash.replace(/^#/,''));
+const code=params.get('code'),tokenHash=params.get('token_hash'),type=params.get('type')||hash.get('type');
+const hasRecoveryHint=type==='recovery'||!!tokenHash;
+if(params.get('error')||hash.get('error')){msg('Link de recuperação inválido ou expirado. Solicite um novo e-mail e abra o link no Safari.');formLogin();return;}
+if(code||tokenHash){
+recovering=true;msg('Validando link de recuperação…');controls.innerHTML='';
+let error=null;
+if(code){({error}=await client.auth.exchangeCodeForSession(code));}
+else if(tokenHash){({error}=await client.auth.verifyOtp({token_hash:tokenHash,type:'recovery'}));}
+if(error){recovering=false;msg('Não foi possível validar o link: '+errorText(error)+'. Solicite um novo e-mail.');formLogin();return;}
+const {data:auth}=await client.auth.getSession();
+if(!auth.session){recovering=false;msg('Não foi possível criar a sessão de recuperação. Abra um novo link no Safari.');formLogin();return;}
+recoveryReady=true;history.replaceState(null,'',location.pathname);showRecoveryForm();return;
+}
+if(hasRecoveryHint){
+recovering=true;msg('Validando sessão de recuperação…');controls.innerHTML='';
+const {data:auth}=await client.auth.getSession();
+if(auth.session){recoveryReady=true;showRecoveryForm();}
+else{recovering=false;msg('Link de recuperação expirado ou inválido. Solicite outro e-mail e abra-o no Safari.');formLogin();}
+return;
+}
+await refresh();
+}
+function formLogin(){controls.innerHTML='<form id="cloud-login"><label>E-mail</label><input type="email" id="cloud-email" autocomplete="username" required><label>Senha</label><input type="password" id="cloud-password" autocomplete="current-password" required><button style="margin-top:12px">Entrar</button><button id="cloud-test" type="button" style="margin:12px 0 0 8px;background:#375b78">Testar conexão</button><button id="cloud-forgot" type="button" style="margin:12px 0 0 8px;background:#526b63">Esqueci minha senha</button></form>';controls.querySelector('#cloud-test').onclick=async()=>{msg('Testando conexão com Supabase…');try{const response=await fetch(cfg.url+'/auth/v1/health',{method:'GET',cache:'no-store'});msg('Servidor Supabase respondeu: HTTP '+response.status+'. '+(response.ok?'Conexão básica funcionando.':'Verifique o projeto e as permissões.'))}catch(e){msg('O servidor Supabase não respondeu ('+new URL(cfg.url).hostname+'). Verifique se o projeto está ativo e tente abrir o aplicativo no Safari. Detalhe: '+errorText(e))}};controls.querySelector('#cloud-forgot').onclick=async()=>{const email=root.querySelector('#cloud-email').value.trim();if(!email){msg('Informe seu e-mail acima para receber a recuperação.');return;}msg('Solicitando e-mail…');const {error}=await client.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});if(error){const detail=errorText(error);msg(/rate limit|too many|429/i.test(detail)?'O Supabase atingiu o limite de e-mails. Aguarde a liberação antes de tentar novamente. Não é necessário excluir seu usuário.':/load failed|failed to fetch|network/i.test(detail)?'Falha de conexão com Supabase. Seus dados locais permanecem neste navegador. Confira o projeto Supabase antes de tentar novamente; não repita o envio de e-mails.': 'Não foi possível enviar o e-mail: '+detail)}else msg('Se o e-mail estiver cadastrado, você receberá um link para criar nova senha. Verifique também o spam.')};controls.querySelector('form').onsubmit=async e=>{e.preventDefault();msg('Entrando…');const email=root.querySelector('#cloud-email').value,password=root.querySelector('#cloud-password').value;const {error}=await client.auth.signInWithPassword({email,password});if(error)msg('Não foi possível entrar: '+errorText(error));else await refresh()};}
+async function refresh(){if(recovering){showRecoveryForm();return;}const {data:{user},error}=await client.auth.getUser();if(error||!user){role=null;msg('Entre com seu e-mail e senha cadastrados no Supabase. Os dados atuais permanecem no iPhone.');formLogin();return;}
+const result=await client.from('perfis').select('perfil').eq('id',user.id).single();if(result.error){role=null;msg('Login realizado, mas o perfil não foi encontrado: '+errorText(result.error));controls.innerHTML='<button id="cloud-out">Sair</button>';root.querySelector('#cloud-out').onclick=logout;return;}
+role=result.data.perfil;msg('Conectado: '+user.email+' • '+(role==='admin'?'Administrador':'Médium')+'. Sincronização manual: confira os dados antes de substituir.');
+controls.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap"><button id="cloud-load">Carregar dados da nuvem</button>'+(role==='admin'?'<button id="cloud-save">Enviar dados para nuvem</button>':'')+'<button id="cloud-out" style="background:#666">Sair</button></div>';
+root.querySelector('#cloud-out').onclick=logout;
+root.querySelector('#cloud-load').onclick=load;
+if(role==='admin')root.querySelector('#cloud-save').onclick=upload;
+}
+async function logout(){await client.auth.signOut();await refresh()}
+async function load(){msg('Consultando nuvem…');const {data:row,error}=await client.from('gestao_dados').select('conteudo,atualizado_em').eq('id','templo').maybeSingle();if(error){msg('Falha ao consultar. Execute o SQL de configuração: '+errorText(error));return;}if(!row){msg('Ainda não há dados na nuvem. O administrador deve enviar um backup.');return;}if(!confirm('Substituir os dados deste aparelho pelos dados da nuvem? Faça um backup local antes.')){await refresh();return;}localStorage.setItem(localKey,JSON.stringify(row.conteudo));location.reload()}
+async function upload(){if(role!=='admin')return;const raw=localStorage.getItem(localKey);if(!raw){msg('Não há dados locais para enviar.');return;}let content;try{content=JSON.parse(raw)}catch{msg('Dados locais inválidos.');return;}if(!confirm('Enviar os dados deste aparelho para a nuvem? Isto substituirá o conjunto compartilhado para todos os médiuns.'))return;msg('Salvando na nuvem…');const {error}=await client.from('gestao_dados').upsert({id:'templo',conteudo:content,atualizado_em:new Date().toISOString()},{onConflict:'id'});if(error){msg('Não foi possível salvar. Verifique se executou o SQL: '+errorText(error));return;}msg('Dados enviados para a nuvem com sucesso. Para atualizar outros aparelhos, use Carregar dados da nuvem.')}
+initializeRecovery();
+})();
+
+</script></body></html>
