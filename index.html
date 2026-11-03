@@ -271,6 +271,12 @@ role=result.data.perfil;if(role!=='admin'){await showMediumPortal();return;}setA
 controls.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap"><button id="medium-publish">Publicar dados individuais dos médiuns</button><button id="cloud-load">Carregar dados da nuvem</button>'+(role==='admin'?'<button id="cloud-save">Enviar dados para nuvem</button>':'')+'<button id="cloud-out" style="background:#666">Sair</button></div>';
 root.querySelector('#cloud-out').onclick=logout;
 root.querySelector('#medium-publish').onclick=publishMediumData;
+if(new URLSearchParams(location.search).get('publicar')==='1'){
+ const publishButton=root.querySelector('#medium-publish');
+ publishButton.style.cssText='background:#ad6320;outline:3px solid #f1c56b;outline-offset:3px';
+ const tip=document.createElement('p');tip.textContent='Toque no botão destacado para publicar os cadastros individuais dos médiuns.';tip.style.fontWeight='bold';controls.prepend(tip);
+ root.scrollIntoView({block:'start',behavior:'smooth'});
+}
 root.querySelector('#cloud-load').onclick=load;
 if(role==='admin')root.querySelector('#cloud-save').onclick=upload;
 }
