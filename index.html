@@ -179,7 +179,7 @@ const norm=v=>String(v||'').trim().toLocaleLowerCase('pt-BR');
 const same=x=>norm(x)===norm(m.nome);
 const money=x=>Number(String(x||'0').replace(',','.'))||0;
 const fmt=x=>x.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-const line=(label,value)=>{const status=String(value||'').trim();const color=status==='Pago'?' summary-paid':status==='Pendente'?' summary-pending':'';return '<div class="dash-line'+color+'"><span>'+esc(label)+'</span><strong>'+esc(value||'Não informado')+'</strong></div>'};
+const line=(label,value)=>{const status=String(value||'').trim();const isInitiation=/iniciado\?/i.test(String(label));const color=(status==='Pago'||(isInitiation&&status==='Sim'))?' summary-paid':(status==='Pendente'||(isInitiation&&status==='Não'))?' summary-pending':'';return '<div class="dash-line'+color+'"><span>'+esc(label)+'</span><strong>'+esc(value||'Não informado')+'</strong></div>'};
 let html='<h3>'+esc(m.nome||'Médium')+'</h3><h4>Dados e informações espirituais</h4>';
 for(const [k,label] of configs['👥 Médiuns'])if(m[k]&&k!=='nome')html+=line(label,m[k]);
 html+='<h4>Mensalidades por ano</h4>';
