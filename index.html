@@ -91,7 +91,7 @@ tile('Mensalidades pendentes',monthly.filter(x=>x.status!=='Pago').length,'🗓�
 tile('Compras',arr('🛒 Compras').filter(x=>x.status!=='Concluído').length,'🛒 Compras','Ver materiais')+
 '</div></div>'+
 '<div class="dash-two"><div class="card"><h2>Próximas sessões</h2>'+(upcoming.length?upcoming.map(s=>'<div class="dash-line"><strong>'+esc(s.tipo||'Sessão')+'</strong><span>'+date(s.data)+' • '+esc(s.hora||'Sem horário')+'</span></div>').join(''):'<p class="muted">Nenhuma sessão futura cadastrada.</p>')+'<button type="button" data-go="📅 Sessões">Ver sessões</button></div>'+
-'<div class="card"><h2>Resumo financeiro</h2><div class="dash-line"><span>Entradas registradas</span><strong>'+fmt(entries)+'</strong></div><div class="dash-line"><span>Saídas registradas</span><strong>'+fmt(expenses)+'</strong></div><div class="dash-line"><span>Saldo calculado</span><strong>'+fmt(entries-expenses)+'</strong></div><p class="muted">Valores dos registros locais; não é extrato bancário.</p><button type="button" data-go="💰 Financeiro">Ver financeiro</button></div></div>'+
+'<div class="card"><h2>Resumo financeiro</h2><div class="dash-line"><span>Entradas registradas</span><strong>'+fmt(entries)+'</strong></div><div class="dash-line"><span>Saídas registradas</span><strong>'+fmt(expenses)+'</strong></div><div class="dash-line"><span>Saldo calculado</span><strong>'+fmt(entries-expenses)+'</strong></div><h3>Resumo por categoria</h3>'+categoryHtml+'<p class="muted">Valores dos registros locais; não é extrato bancário.</p><button type="button" data-go="💰 Financeiro">Ver financeiro</button></div></div>'+
 '<div class="card"><h2>Atividades por médium</h2>'+summaryTasks()+'</div>';
 }
 
