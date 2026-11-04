@@ -47,7 +47,7 @@ const configs={
 '📅 Sessões':[['data','Data','date'],['tipo','Tipo de sessão','session'],['hora','Horário','time'],['observacoes','Observações'],['responsavel','Médium responsável','medium']],
 '🧹 Tarefas':[['data','Data','date'],['medium','Médium responsável','medium'],['tarefa','Atividade','task'],['status','Situação','status']],
 '💰 Financeiro':[['data','Data','date'],['tipo','Categoria','finance'],['descricao','Descrição'],['valor','Valor (R$)','number'],['medium','Médium relacionado','medium'],['mes','Mês de referência','month'],['pagamento','Pagamento confirmado?','yesno'] ],
-'📋 Atendimentos':[['data','Data','date'],['descricao','Descrição sem dados sensíveis'],['status','Situação','status']],
+'📋 Atendimentos':[['nome','Nome do consulente'],['telefone','Fone do consulente','tel'],['data','Data','date'],['descricao','Descrição sem dados sensíveis'],['status','Situação','status']],
 '📢 Comunicados':[['data','Data','date'],['titulo','Título'],['mensagem','Mensagem']],
 '🎓 Estudos':[['tipo','Tipo','study'],['titulo','Título'],['link','Link (opcional)','url']],
 '🛒 Compras':[['item','Material'],['quantidade','Quantidade'],['status','Situação','status']],
@@ -69,7 +69,7 @@ finance:['Entrada','Saída','Mensalidade','Sessão Exu','Sessão cigana','Sessã
 study:['Videoaula','Material de estudo','Outro'],yesno:['Sim','Não'],payment:['Pendente','Pago']
 };
 const sections=Object.keys(configs);
-const sectionLabel=s=>s==='📖 Características dos Orixás'?'📖 Características dos filhos de cada orixá':s;
+const sectionLabel=s=>s==='📖 Características dos Orixás'?'📖 Características dos filhos de cada orixá':s==='📋 Atendimentos'?'📋 Atendimento / Jogo / Radiestesia':s;
 const blank=()=>Object.fromEntries(sections.filter(s=>configs[s]).map(s=>[s,[]]));
 let data=blank();try{const d=JSON.parse(localStorage.getItem(KEY)||'null');if(d&&typeof d==='object')for(const s of Object.keys(data))if(Array.isArray(d[s]))data[s]=d[s]}catch(e){}
 let current=sections[0];
