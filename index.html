@@ -97,6 +97,7 @@ const date=x=>{if(!x)return 'Sem data';const p=x.split('-');return p.length===3?
 const tile=(name,value,go,detail)=>'<button type="button" class="dash-tile" data-go="'+go+'"><span class="dash-label">'+name+'</span><strong class="dash-value">'+esc(value)+'</strong><small>'+detail+'</small></button>';
 return birthdayNotice()+'<div class="card"><h2>Visão geral do terreiro</h2><p class="muted">Resumo dos registros salvos neste aparelho</p><div class="dash-grid">'+
 tile('Médiuns',med.length,'👥 Médiuns','Ver cadastros')+
+tile('Código de ética',arr('📜 Código de ética do templo')[0]?.texto?.trim()?'Preenchido':'A preencher','📜 Código de ética do templo','Consultar ou editar o código')+
 tile('Agenda diária',arr('📆 Agenda diária').filter(x=>x.realizada!=='Sim').length,'📆 Agenda diária','Rotinas pendentes')+
 tile('Sessões',sessions.length,'📅 Sessões','Ver calendário')+
 tile('Tarefas pendentes',pending.length,'🧹 Tarefas','Ver responsáveis')+
