@@ -231,6 +231,33 @@ target.innerHTML=html;
 }
 function render(){
 $('nav').innerHTML=sections.map(s=>'<button type="button" data-tab="'+esc(s)+'" aria-current="'+(s===current)+'">'+esc(sectionLabel(s))+'</button>').join('');
+if(current==='🗓️ Mensalidades'){
+const med=(data['👥 Médiuns']||[]).filter(x=>x.nome);
+const rows=data[current]||[];
+const nowYear=new Date().getFullYear();
+const defaultYear=Math.min(2040,Math.max(2026,nowYear));
+$('view').innerHTML='<div class="card"><h2>🗓️ Mensalidades por médium</h2><p class="muted">Selecione o médium e o ano. Marque cada mês como Pago (verde) ou Pendente (vermelho). As alterações são salvas neste aparelho.</p><label for="mens-medium">Nome do médium</label><select id="mens-medium"><option value="">Selecione o médium</option>'+med.map(x=>'<option value="'+esc(x.nome)+'">'+esc(x.nome)+'</option>').join('')+'</select><label for="mens-year">Ano</label><select id="mens-year">'+Array.from({length:15},(_,i)=>2026+i).map(y=>'<option value="'+y+'" '+(y===defaultYear?'selected':'')+'>'+y+'</option>').join('')+'</select><div id="mens-months"></div><p id="mens-feedback" role="status" aria-live="polite"></p></div>';
+const showMonths=()=>{
+const name=$('mens-medium').value,year=$('mens-year').value,box=$('mens-months');
+if(!name){box.innerHTML='<p class="muted">Escolha um médium para visualizar janeiro a dezembro.</p>';return;}
+box.innerHTML='<div class="month-grid">'+monthNames.map((month,i)=>{
+const ref=year+'-'+String(i+1).padStart(2,'0');
+const existing=rows.filter(x=>x.medium===name&&x.mes===ref).slice(-1)[0];
+const status=existing?.status==='Pago'?'Pago':'Pendente';
+return '<label class="month-item">'+month+'<select class="month-status '+(status==='Pago'?'month-paid':'month-pending')+'" data-ref="'+ref+'"><option value="Pendente" '+(status==='Pendente'?'selected':'')+'>Pendente</option><option value="Pago" '+(status==='Pago'?'selected':'')+'>Pago</option></select></label>';
+}).join('')+'</div>';
+box.querySelectorAll('[data-ref]').forEach(select=>select.onchange=()=>{
+const name=$('mens-medium').value,ref=select.dataset.ref,value=select.value;
+const old=rows.map(x=>({...x}));
+let existing=rows.filter(x=>x.medium===name&&x.mes===ref).slice(-1)[0];
+if(existing)existing.status=value;
+else rows.push({id:'mens-'+Date.now()+'-'+Math.random().toString(36).slice(2),medium:name,mes:ref,valor:'',status:value});
+try{save();select.classList.toggle('month-paid',value==='Pago');select.classList.toggle('month-pending',value!=='Pago');$('mens-feedback').textContent=monthNames[Number(ref.slice(-2))-1]+' de '+year+': '+value+' — salvo neste aparelho.';}
+catch(e){data[current]=old;select.value=value==='Pago'?'Pendente':'Pago';$('mens-feedback').textContent='Não foi possível salvar: '+e.message;}
+});
+};
+$('mens-medium').onchange=showMonths;$('mens-year').onchange=showMonths;showMonths();return;
+}
 if(current==='📅 Datas comemorativas'){$('view').innerHTML="<div class=\"card\"><h2>📅 Datas comemorativas dos orixás e linhas de trabalho do Templo Xangô</h2><p class=\"muted\">Datas de referência do templo; associações variam entre tradições.</p><h3>Janeiro</h3><p>20 — Oxóssi (São Sebastião)</p><h3>Fevereiro</h3><p>02 — Yemanjá (Nossa Senhora dos Navegantes)</p><h3>Abril</h3><p>19 — Logun Edé (Santo Expedito)</p><p>23 — Ogum (São Jorge)</p><h3>Maio</h3><p>30 — Obá (Santa Joana d’Arc)</p><h3>Junho</h3><p>13 — Elegbará (Santo Antônio) — Inauguração do Templo Xangô</p><p>24 — Xangô (São João Batista), outra comemoração</p><h3>Julho</h3><p>26 — Nanã (Santa Ana) — Dia dos Avós</p><h3>Agosto</h3><p>16 — Obaluaê (São Lázaro)</p><p>24 — Oxumaré (São Bartolomeu)</p><h3>Setembro</h3><p>30 — Xangô (São Jerônimo)</p><h3>Outubro</h3><p>05 — Ossain (São Benedito)</p><p>12 — Oxum (Nossa Senhora Aparecida)</p><h3>Dezembro</h3><p>04 — Iansã (Santa Bárbara)</p><p>13 — Ewá (Santa Luzia)</p><p>25 — Oxalá (Jesus Cristo)</p><h3>Outras datas importantes</h3><p>19/04 — Caboclos das matas (Dia dos Povos Indígenas)</p><p>13/05 — Pretos Velhos</p><p>24/05 — Santa Sara Kali</p><p>27/09 — Cosme e Damião</p><p>28/10 — Zé Pelintra</p><p>31/10 — Boiadeiros</p><p>02/11 — Ancestrais (Finados)</p><p>15/11 — Dia da Umbanda</p><p>13/12 — Marinheiros</p></div>";return;}
 if(current==='📜 Código de ética do templo'){
 const item=(data[current]||[])[0]||{};
