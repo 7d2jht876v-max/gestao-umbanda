@@ -165,7 +165,7 @@ box.innerHTML='<p><strong>'+esc(name)+'</strong></p>'+(categories.length?categor
 }
 function monthlySection(){
 const year=new Date().getFullYear();
-return '<div class="monthly-panel"><h3>📆 Mensalidades de janeiro a dezembro</h3><p class="muted">Escolha o ano e marque Pago ou Pendente em cada mês deste médium.</p><label for="monthly-year">Ano</label><input type="number" id="monthly-year" min="2000" max="2100" step="1" value="'+year+'"><div id="monthly-grid">'+monthlyGrid(year)+'</div></div><div class="monthly-panel"><h3>💰 Resumo financeiro por categoria deste médium</h3><div id="medium-category-summary"><p class="muted">Toque em Editar no cadastro de um médium para consultar o resumo.</p></div></div>';
+return '<div class="monthly-panel"><h3>📆 Mensalidades de janeiro a dezembro</h3><p class="muted">Escolha o ano e marque Pago ou Pendente em cada mês deste médium.</p><label for="monthly-year">Ano</label><select id="monthly-year">'+Array.from({length:15},(_,i)=>2026+i).map(y=>'<option value="'+y+'"'+(y===year?' selected':'')+'>'+y+'</option>').join('')+'</select><div id="monthly-grid">'+monthlyGrid(year)+'</div></div><div class="monthly-panel"><h3>💰 Resumo financeiro por categoria deste médium</h3><div id="medium-category-summary"><p class="muted">Toque em Editar no cadastro de um médium para consultar o resumo.</p></div></div>';
 }
 function captureMonthlyGrid(){
 const year=document.getElementById('monthly-year')?.value;
