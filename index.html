@@ -225,7 +225,7 @@ const money=x=>Number(String(x||'0').replace(',','.'))||0;
 const fmt=x=>x.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const line=(label,value)=>{const status=String(value||'').trim();const isInitiation=/iniciado\?|Segurança do ano realizada\?/i.test(String(label));const color=(status==='Pago'||(isInitiation&&status==='Sim'))?' summary-paid':(status==='Pendente'||(isInitiation&&status==='Não'))?' summary-pending':'';return '<div class="dash-line'+color+'"><span>'+esc(label)+'</span><strong>'+esc(value||'Não informado')+'</strong></div>'};
 let html='<h3>'+esc(m.nome||'Médium')+'</h3><h4>Dados e informações espirituais</h4>';
-for(const [k,label] of configs['👥 Médiuns'])if(m[k]&&k!=='nome')html+=line(label,m[k]);
+for(const [k,label,type] of configs['👥 Médiuns'])if(m[k]&&k!=='nome')html+=line(label,type==='date'?formatDateBR(m[k]):m[k]);
 html+='<h4>Mensalidades por ano</h4>';
 const years=Object.entries(m.mensalidadesPorAno||{}).sort((a,b)=>b[0].localeCompare(a[0]));
 html+=years.length?years.map(([year,months])=>'<h5>'+esc(year)+'</h5>'+monthNames.map((name,i)=>line(name,months[String(i+1).padStart(2,'0')]||'Pendente')).join('')).join(''):'<p class="muted">Nenhum ano registrado.</p>';
