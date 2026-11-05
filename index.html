@@ -233,7 +233,7 @@ html+='<h4>Sessões e presenças</h4>'+(sessions.length?sessions.map(x=>{const p
 target.innerHTML=html;
 }
 function render(){
-$('nav').innerHTML=sections.map(s=>'<button type="button" data-tab="'+esc(s)+'" aria-current="'+(s===current)+'">'+esc(sectionLabel(s))+'</button>').join('');
+$('nav').innerHTML=sections.filter(s=>s!=='🗓️ Mensalidades').map(s=>'<button type="button" data-tab="'+esc(s)+'" aria-current="'+(s===current)+'">'+esc(sectionLabel(s))+'</button>').join('');
 if(current==='🛒 Compras'){
 const rows=data[current]||[];
 $('view').innerHTML='<div class="card"><h2>🛒 Lista de compras editável</h2><p class="muted">Adicione materiais, altere quantidades e marque o que já foi comprado. As mudanças são salvas neste aparelho.</p><form id="shopping-add"><label for="shopping-item">Material</label><input id="shopping-item" required placeholder="Ex.: Gelo"><label for="shopping-qty">Quantidade</label><input id="shopping-qty" required placeholder="Ex.: 2 sacos" value="1"><div class="actions"><button type="submit">＋ Adicionar à lista</button></div></form><h3>Materiais da lista (<span id="shopping-count"></span>)</h3><label for="shopping-filter">Filtrar por situação</label><select id="shopping-filter"><option value="todos">Todos</option><option value="sim">✓ Sim — comprados</option><option value="nao">✕ Não — pendentes</option></select><div id="shopping-list"></div><p id="shopping-feedback" role="status" aria-live="polite"></p></div>';
