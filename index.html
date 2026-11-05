@@ -124,7 +124,7 @@ const fmt=x=>x.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const monthlyMediumRows=fin.filter(x=>x.tipo==='Mensalidade'&&x.medium&&x.mes);
 const monthlyMediumSummary=monthlyMediumRows.length?'<h3>Mensalidades por médium e mês</h3>'+monthlyMediumRows.slice().sort((a,b)=>String(b.mes).localeCompare(String(a.mes))||String(a.medium).localeCompare(String(b.medium))).map(x=>'<div class="dash-line"><span>'+esc(x.medium)+' • '+esc(x.mes)+'</span><strong>'+fmt(money(x.valor))+'</strong></div>').join(''):'';
 const categoryNames=[...new Set([...options.finance,...fin.map(x=>String(x.tipo||'Sem categoria').trim()||'Sem categoria')])];
-const categorySummary=categoryNames.map(name=>{const rows=fin.filter(x=>(String(x.tipo||'Sem categoria').trim()||'Sem categoria')===name);return {name,total:rows.reduce((sum,x)=>sum+money(x.valor),0),count:rows.length}}).filter(x=>x.count>0);
+const categorySummary=categoryNames.map(name=>{const rows=fin.filter(x=>(String(x.tipo||'Sem categoria').trim()||'Sem categoria')===name);return {name,total:rows.reduce((sum,x)=>sum+money(x.valor),0),count:rows.length}});
 const categoryHtml=categorySummary.length?categorySummary.map(x=>'<div class="dash-line"><span>'+esc(x.name)+' <small class="muted">('+x.count+')</small></span><strong>'+fmt(x.total)+'</strong></div>').join(''):'<p class="muted">Nenhum lançamento financeiro por categoria.</p>';
 const date=x=>{if(!x)return 'Sem data';const p=x.split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:x};
 const tile=(name,value,go,detail)=>'<button type="button" class="dash-tile" data-go="'+go+'"><span class="dash-label">'+name+'</span><strong class="dash-value">'+esc(value)+'</strong><small>'+detail+'</small></button>';
