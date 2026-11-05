@@ -225,22 +225,6 @@ const line=(label,value)=>{const status=String(value||'').trim();const isInitiat
 let html='<h3>'+esc(m.nome||'Médium')+'</h3><h4>Dados e informações espirituais</h4>';
 function formatFoneBR(value){const digits=String(value||'').replace(/\D/g,'');if(digits.length===11)return '('+digits.slice(0,2)+')'+digits.slice(2);if(digits.length===10)return '('+digits.slice(0,2)+')'+digits.slice(2);return value||''}
 for(const [k,label,type] of configs['👥 Médiuns'])if((m[k]||k==='nomeIniciatico')&&k!=='nome')html+=line(label,type==='date'?formatDateBR(m[k]):k==='telefone'?formatFoneBR(m[k]):m[k]);
-const fin=(data['💰 Financeiro']||[]).filter(x=>same(x.medium));
-html+='<h4>Financeiro por categoria</h4>';
-const totals={};for(const f of fin){const category=f.tipo||'Sem categoria';totals[category]=(totals[category]||0)+money(f.valor)}
-html+=Object.keys(totals).length?Object.entries(totals).map(([k,v])=>line(k,fmt(v))).join(''):'<p class="muted">Nenhum lançamento financeiro.</p>';
-const tracked=['Gastos loja','Sessão Exu','Sessão cigana','Sessão especial'];
-html+='<h4>Pagamentos por categoria</h4>';
-const trackedRows=fin.filter(x=>tracked.includes(x.tipo));
-html+=trackedRows.length?trackedRows.map(x=>{
-const status=x.pagamento==='Sim'?'Sim':x.pagamento==='Não'?'Não':'Não informado';
-const color=status==='Sim'?' summary-paid':status==='Não'?' summary-pending':'';
-const label=x.tipo+(x.mes?' — '+x.mes:x.data?' — '+x.data:'');
-return '<div class="dash-line'+color+'"><span>'+esc(label)+'<small style="display:block">Valor: '+fmt(money(x.valor))+'</small></span><strong>'+esc(status)+'</strong></div>';
-}).join(''):'<p class="muted">Nenhum lançamento nessas categorias.</p>';
-const entries=fin.filter(x=>x.tipo!=='Saída'&&x.tipo!=='Gastos loja').reduce((s,x)=>s+money(x.valor),0);
-const expenses=fin.filter(x=>x.tipo==='Saída'||x.tipo==='Gastos loja').reduce((s,x)=>s+money(x.valor),0);
-html+=line('Total de entradas',fmt(entries))+line('Total de saídas',fmt(expenses))+line('Saldo',fmt(entries-expenses));
 const tasks=(data['🧹 Tarefas']||[]).filter(x=>same(x.medium));
 html+='<h4>Tarefas</h4>'+(tasks.length?tasks.map(x=>line((x.data||'Sem data')+' — '+(x.tarefa||'Tarefa'),x.status||'Pendente')).join(''):'<p class="muted">Nenhuma tarefa.</p>');
 const sessions=(data['📅 Sessões']||[]).filter(x=>same(x.responsavel)||(Array.isArray(x.presencas)&&x.presencas.some(p=>same(p.nome))));
