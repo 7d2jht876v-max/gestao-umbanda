@@ -227,9 +227,9 @@ let html='<h3>'+esc(m.nome||'Médium')+'</h3><h4>Dados e informações espiritua
 function formatFoneBR(value){const digits=String(value||'').replace(/\D/g,'');if(digits.length===11)return '('+digits.slice(0,2)+')'+digits.slice(2);if(digits.length===10)return '('+digits.slice(0,2)+')'+digits.slice(2);return value||''}
 for(const [k,label,type] of configs['👥 Médiuns'])if((m[k]||k==='nomeIniciatico')&&k!=='nome')html+=line(label,type==='date'?formatDateBR(m[k]):k==='telefone'?formatFoneBR(m[k]):m[k]);
 const tasks=(data['🧹 Tarefas']||[]).filter(x=>same(x.medium));
-html+='<h4>Tarefas</h4>'+(tasks.length?tasks.map(x=>line((x.data||'Sem data')+' — '+(x.tarefa||'Tarefa'),x.status||'Pendente')).join(''):'<p class="muted">Nenhuma tarefa.</p>');
+html+='<h4>Tarefas</h4>'+(tasks.length?tasks.map(x=>line((formatDateBR(x.data)||'Sem data')+' — '+(x.tarefa||'Tarefa'),x.status||'Pendente')).join(''):'<p class="muted">Nenhuma tarefa.</p>');
 const sessions=(data['📅 Sessões']||[]).filter(x=>same(x.responsavel)||(Array.isArray(x.presencas)&&x.presencas.some(p=>same(p.nome))));
-html+='<h4>Sessões e presenças</h4>'+(sessions.length?sessions.map(x=>{const p=(x.presencas||[]).find(p=>same(p.nome));return line((x.data||'Sem data')+' — '+(x.tipo||'Sessão'),p?'Presença: '+p.presenca:'Responsável')}).join(''):'<p class="muted">Nenhuma sessão vinculada.</p>');
+html+='<h4>Sessões e presenças</h4>'+(sessions.length?sessions.map(x=>{const p=(x.presencas||[]).find(p=>same(p.nome));return line((formatDateBR(x.data)||'Sem data')+' — '+(x.tipo||'Sessão'),p?'Presença: '+p.presenca:'Responsável')}).join(''):'<p class="muted">Nenhuma sessão vinculada.</p>');
 target.innerHTML=html;
 }
 function render(){
