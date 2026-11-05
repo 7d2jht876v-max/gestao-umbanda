@@ -229,9 +229,6 @@ const line=(label,value)=>{const status=String(value||'').trim();const isInitiat
 let html='<h3>'+esc(m.nome||'Médium')+'</h3><h4>Dados e informações espirituais</h4>';
 function formatFoneBR(value){const digits=String(value||'').replace(/\D/g,'');if(digits.length===11)return '('+digits.slice(0,2)+')'+digits.slice(2);if(digits.length===10)return '('+digits.slice(0,2)+')'+digits.slice(2);return value||''}
 for(const [k,label,type] of configs['👥 Médiuns'])if((m[k]||k==='nomeIniciatico')&&k!=='nome')html+=line(label,type==='date'?formatDateBR(m[k]):k==='telefone'?formatFoneBR(m[k]):m[k]);
-html+='<h4>Mensalidades por ano</h4>';
-const years=Object.entries(m.mensalidadesPorAno||{}).sort((a,b)=>b[0].localeCompare(a[0]));
-html+=years.length?years.map(([year,months])=>'<h5>'+esc(year)+'</h5>'+monthNames.map((name,i)=>line(name,months[String(i+1).padStart(2,'0')]||'Pendente')).join('')).join(''):'<p class="muted">Nenhum ano registrado.</p>';
 const fin=(data['💰 Financeiro']||[]).filter(x=>same(x.medium));
 html+='<h4>Financeiro por categoria</h4>';
 const totals={};for(const f of fin){const category=f.tipo||'Sem categoria';totals[category]=(totals[category]||0)+money(f.valor)}
