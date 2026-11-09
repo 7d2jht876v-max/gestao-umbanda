@@ -96,7 +96,7 @@ status:['Pendente','Em andamento','Concluído'],
 finance:['Entrada','Saída','Mensalidade','Sessão Exu','Sessão cigana','Sessão Cosme','Camarinhas','Gastos loja','Segurança do ano'],
 study:['Videoaula','Material de estudo','Outro'],yesno:['Sim','Não'],payment:['Pendente','Pago']
 };
-const sections=[...Object.keys(configs),'📋 Inadimplências'];
+const sections=[...Object.keys(configs)];sections.splice(1,0,'📋 Inadimplências');
 const sectionLabel=s=>s==='📖 Características dos Orixás'?'📖 Características dos filhos de cada orixá':s==='📋 Atendimentos'?'📋 Atendimento / Jogo / Radiestesia':s;
 const blank=()=>Object.fromEntries(sections.filter(s=>configs[s]).map(s=>[s,[]]));
 let data=blank();try{const d=JSON.parse(localStorage.getItem(KEY)||'null');if(d&&typeof d==='object')for(const s of Object.keys(data))if(Array.isArray(d[s]))data[s]=d[s]}catch(e){}
@@ -142,6 +142,7 @@ tile('Atendimentos',arr('📋 Atendimentos').length,'📋 Atendimentos','Ver age
 tile('Mensalidades pendentes',monthly.filter(x=>x.status!=='Pago').length,'🗓️ Mensalidades','Ver pagamentos')+
 tile('Compras',arr('🛒 Compras').filter(x=>x.status!=='Concluído').length,'🛒 Compras','Ver materiais')+
 tile('Financeiro',fin.length,'💰 Financeiro','Ver lançamentos')+
+tile('Inadimplências','Consultar','📋 Inadimplências','Ver pagamentos pendentes')+
 tile('Comunicados',arr('📢 Comunicados').length,'📢 Comunicados','Ver avisos')+
 tile('Estudos',arr('🎓 Estudos').length,'🎓 Estudos','Ver materiais de estudo')+
 tile('Axés',arr('🌿 Axés').length,'🌿 Axés','Ver axés da semana')+
