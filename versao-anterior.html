@@ -113,23 +113,31 @@ return '<div class="card birthday-notice"><h2>🎂 Aniversariantes de hoje</h2><
 }
 const agendaWeekStorageKey=KEY+'_agenda_semana_selecionada_v1';function agendaWeekStart(value){const parts=/^(\d{4})-W(\d{2})$/.exec(String(value||''));if(!parts)return null;const jan4=new Date(Date.UTC(Number(parts[1]),0,4));jan4.setUTCDate(jan4.getUTCDate()-(jan4.getUTCDay()+6)%7+(Number(parts[2])-1)*7);return jan4}function agendaCurrentWeek(){const d=new Date(),t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));t.setUTCDate(t.getUTCDate()+3-(t.getUTCDay()+6)%7);const y=t.getUTCFullYear(),j=new Date(Date.UTC(y,0,4));j.setUTCDate(j.getUTCDate()+3-(j.getUTCDay()+6)%7);return y+'-W'+String(1+Math.round((t-j)/604800000)).padStart(2,'0')}
 const debtKey=KEY+'_inadimplencias_por_medium_v1';
-function debtRecords(){try{const x=JSON.parse(localStorage.getItem(debtKey)||'[]');return Array.isArray(x)?x:[]}catch(e){return []}}
+const debtPeopleKey=KEY+'_inadimplencias_cadastros_v1';
+const debtCats=['Inadimplência','Loja','Camarinhas','Sessão especial','Outros débitos'];
+function debtRead(k){try{const x=JSON.parse(localStorage.getItem(k)||'[]');return Array.isArray(x)?x:[]}catch(e){return []}}
+function debtRecords(){return debtRead(debtKey)}
+function debtPeople(){return debtRead(debtPeopleKey)}
 function inadimplenciasPanel(){
-const meds=(data['👥 Médiuns']||[]).filter(m=>String(m.nome||'').trim());
-const debts=debtRecords(),cats=['Inadimplência','Loja','Camarinhas','Sessão especial','Outros débitos'];
-const opts=meds.map(m=>'<option value="'+esc(m.nome)+'">'+esc(m.nome)+'</option>').join('');
+const people=debtPeople(),debts=debtRecords();
 const brl=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-const cards=meds.map(m=>{const rows=debts.filter(d=>d.medium===m.nome),pending=rows.filter(d=>d.status!=='Pago'),total=pending.reduce((n,d)=>n+Number(d.valor||0),0);
-return '<details class="consulente-summary"><summary>'+esc(m.nome)+' — '+pending.length+' pendência(s) • '+brl(total)+'</summary>'+
-cats.map(cat=>{const items=rows.filter(d=>d.categoria===cat);return '<div style="padding:8px 0;border-bottom:1px solid #ddd"><strong>'+esc(cat)+'</strong>'+(items.length?items.map(d=>'<div style="margin:8px 0">'+esc(d.descricao||'Sem descrição')+' • '+brl(d.valor)+' • '+esc(d.status||'Pendente')+' <button type="button" data-debt-toggle="'+esc(d.id)+'">'+(d.status==='Pago'?'Marcar pendente':'Marcar pago')+'</button> <button type="button" data-debt-remove="'+esc(d.id)+'">Excluir</button></div>').join(''):'<p class="muted">Nenhum registro</p>')+'</div>'}).join('')+'</details>'}).join('');
-return '<div class="card"><h2>📋 Inadimplências por médium</h2><p class="muted">Registre débitos de cada médium nas categorias abaixo. Os valores são salvos neste navegador.</p>'+
-'<form id="debt-form"><label>Médium</label><select id="debt-medium" required><option value="">Selecione</option>'+opts+'</select><label>Categoria</label><select id="debt-category">'+cats.map(c=>'<option>'+esc(c)+'</option>').join('')+'</select><label>Descrição</label><input id="debt-description" placeholder="Ex.: mensalidade de outubro" required><label>Valor (R$)</label><input id="debt-value" type="number" min="0" step="0.01" required><button type="submit">Adicionar débito</button></form>'+
-'<h3>Débitos por médium</h3>'+(cards||'<p>Cadastre um médium primeiro.</p>')+'</div>';
+const cards=people.map(p=>{const rows=debts.filter(d=>d.personId===p.id),pending=rows.filter(d=>d.status!=='Pago'),total=pending.reduce((n,d)=>n+Number(d.valor||0),0);
+return '<details class="consulente-summary"><summary>'+esc(p.nome)+' • '+esc(p.telefone||'Sem telefone')+' — '+brl(total)+' pendente</summary>'+
+'<p><strong>Telefone:</strong> '+esc(p.telefone||'Não informado')+'</p>'+
+'<h4>Resumo dos débitos</h4>'+
+debtCats.map(cat=>{const items=rows.filter(d=>d.categoria===cat);return '<div style="padding:8px 0;border-bottom:1px solid #ddd"><strong>'+esc(cat)+'</strong>'+(items.length?items.map(d=>'<div style="margin:8px 0">'+esc(d.descricao||'Sem descrição')+' • '+brl(d.valor)+' • '+esc(d.status||'Pendente')+' <button type="button" data-debt-toggle="'+esc(d.id)+'">'+(d.status==='Pago'?'Marcar pendente':'Marcar pago')+'</button> <button type="button" data-debt-remove="'+esc(d.id)+'">Excluir</button></div>').join(''):'<p class="muted">Nenhum débito registrado</p>')+'</div>'}).join('')+
+'<p><strong>Total pendente: '+brl(total)+'</strong></p><button type="button" data-person-remove="'+esc(p.id)+'">Excluir cadastro</button></details>'}).join('');
+return '<div class="card"><h2>📋 Inadimplências — cadastro independente</h2><p class="muted">Os cadastros desta área são separados dos médiuns, do Financeiro e dos demais registros.</p>'+
+'<h3>Novo cadastro</h3><form id="debt-person-form"><label for="debt-person-name">Nome</label><input id="debt-person-name" required><label for="debt-person-phone">Telefone</label><input id="debt-person-phone" type="tel" required><button type="submit">Cadastrar</button></form>'+
+'<h3>Registrar débito</h3><form id="debt-form"><label for="debt-person">Nome</label><select id="debt-person" required><option value="">Selecione o cadastro</option>'+people.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.nome)+'</option>').join('')+'</select><label for="debt-category">Categoria</label><select id="debt-category">'+debtCats.map(c=>'<option>'+esc(c)+'</option>').join('')+'</select><label for="debt-description">Descrição do débito</label><input id="debt-description" required><label for="debt-value">Valor (R$)</label><input id="debt-value" type="number" min="0" step="0.01" required><button type="submit">Adicionar débito</button></form>'+
+'<h3>Cadastros e resumo dos débitos</h3>'+(cards||'<p>Nenhum cadastro nesta área.</p>')+'</div>';
 }
 function bindInadimplencias(){
-const form=$('debt-form');if(!form)return;
-form.onsubmit=e=>{e.preventDefault();const medium=$('debt-medium').value,categoria=$('debt-category').value,descricao=$('debt-description').value.trim(),valor=Number($('debt-value').value);if(!medium||!descricao||!Number.isFinite(valor)||valor<0)return;const rows=debtRecords();rows.push({id:'debito-'+Date.now()+'-'+Math.random().toString(36).slice(2),medium,categoria,descricao,valor,status:'Pendente'});try{localStorage.setItem(debtKey,JSON.stringify(rows));render()}catch(err){alert('Não foi possível salvar: '+err.message)}};
-$('view').querySelectorAll('[data-debt-toggle],[data-debt-remove]').forEach(btn=>btn.onclick=()=>{const id=btn.dataset.debtToggle||btn.dataset.debtRemove,rows=debtRecords(),i=rows.findIndex(x=>x.id===id);if(i<0)return;if(btn.dataset.debtRemove&&!confirm('Excluir este débito?'))return;if(btn.dataset.debtRemove)rows.splice(i,1);else rows[i].status=rows[i].status==='Pago'?'Pendente':'Pago';try{localStorage.setItem(debtKey,JSON.stringify(rows));render()}catch(err){alert('Não foi possível salvar: '+err.message)}});
+const store=(key,rows)=>{localStorage.setItem(key,JSON.stringify(rows));render()};
+$('debt-person-form').onsubmit=e=>{e.preventDefault();const nome=$('debt-person-name').value.trim(),telefone=$('debt-person-phone').value.trim();if(!nome||!telefone)return;const rows=debtPeople();rows.push({id:'pessoa-'+Date.now()+'-'+Math.random().toString(36).slice(2),nome,telefone});try{store(debtPeopleKey,rows)}catch(err){alert('Erro ao salvar: '+err.message)}};
+$('debt-form').onsubmit=e=>{e.preventDefault();const personId=$('debt-person').value,categoria=$('debt-category').value,descricao=$('debt-description').value.trim(),valor=Number($('debt-value').value);if(!debtPeople().some(p=>p.id===personId)||!descricao||!Number.isFinite(valor)||valor<0)return;const rows=debtRecords();rows.push({id:'debito-'+Date.now()+'-'+Math.random().toString(36).slice(2),personId,categoria,descricao,valor,status:'Pendente'});try{store(debtKey,rows)}catch(err){alert('Erro ao salvar: '+err.message)}};
+$('view').querySelectorAll('[data-debt-toggle],[data-debt-remove]').forEach(btn=>btn.onclick=()=>{const id=btn.dataset.debtToggle||btn.dataset.debtRemove,rows=debtRecords(),i=rows.findIndex(x=>x.id===id);if(i<0)return;if(btn.dataset.debtRemove&&!confirm('Excluir este débito?'))return;if(btn.dataset.debtRemove)rows.splice(i,1);else rows[i].status=rows[i].status==='Pago'?'Pendente':'Pago';try{store(debtKey,rows)}catch(err){alert('Erro ao salvar: '+err.message)}});
+$('view').querySelectorAll('[data-person-remove]').forEach(btn=>btn.onclick=()=>{const id=btn.dataset.personRemove;if(!confirm('Excluir este cadastro e seus débitos?'))return;try{localStorage.setItem(debtPeopleKey,JSON.stringify(debtPeople().filter(p=>p.id!==id)));store(debtKey,debtRecords().filter(d=>d.personId!==id))}catch(err){alert('Erro ao salvar: '+err.message)}});
 }
 function dashboard(){
 const arr=s=>data[s]||[];
