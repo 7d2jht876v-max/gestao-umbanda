@@ -96,7 +96,7 @@ status:['Pendente','Em andamento','Concluído'],
 finance:['Entrada','Saída','Mensalidade','Sessão Exu','Sessão cigana','Sessão Cosme','Camarinhas','Gastos loja','Segurança do ano'],
 study:['Videoaula','Material de estudo','Outro'],yesno:['Sim','Não'],payment:['Pendente','Pago']
 };
-const sections=[...Object.keys(configs)];sections.splice(1,0,'📋 Inadimplências');
+const sections=[...Object.keys(configs)];const financeTab=sections.indexOf('💰 Financeiro');sections.splice(financeTab>=0?financeTab+1:1,0,'📋 Inadimplências');
 const sectionLabel=s=>s==='📖 Características dos Orixás'?'📖 Características dos filhos de cada orixá':s==='📋 Atendimentos'?'📋 Atendimento / Jogo / Radiestesia':s;
 const blank=()=>Object.fromEntries(sections.filter(s=>configs[s]).map(s=>[s,[]]));
 let data=blank();try{const d=JSON.parse(localStorage.getItem(KEY)||'null');if(d&&typeof d==='object')for(const s of Object.keys(data))if(Array.isArray(d[s]))data[s]=d[s]}catch(e){}
