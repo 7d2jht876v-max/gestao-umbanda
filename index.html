@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#164b43"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Gestão Umbanda"><title>Gestão Umbanda — atualização 119</title><style>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#164b43"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Gestão Umbanda"><title>Gestão Umbanda — atualização 120</title><style>
 :root{font-family:system-ui,-apple-system,sans-serif;color:#183a34;background:#f4f7f5}*{box-sizing:border-box}body{margin:0}header{background:#164b43;color:white;padding:24px 18px}h1{margin:0;font-size:26px}header p{margin:6px 0 0;opacity:.9}main{max-width:720px;margin:auto;padding:18px}.notice{background:#fff3d7;border:1px solid #e6c575;padding:13px;border-radius:12px;font-size:14px}nav{display:flex;gap:8px;overflow:auto;padding:16px 0}button{border:0;border-radius:10px;padding:12px 15px;background:#16685b;color:white;font-weight:650;cursor:pointer}nav button{white-space:nowrap;background:#e0ebe7;color:#164b43}nav button.active{background:#16685b;color:white}section{background:white;border-radius:14px;padding:18px;box-shadow:0 2px 12px #1232}h2{margin-top:0}label{display:block;font-weight:600;margin:14px 0 5px}input,select{width:100%;padding:12px;border:1px solid #bbc9c4;border-radius:9px;font:inherit}.item{padding:13px 0;border-bottom:1px solid #e2e9e6;overflow-wrap:anywhere}.item small{display:block;color:#61736d;margin-top:4px}.muted{color:#647770}.danger{background:#9e3c3c;margin-top:15px}footer{font-size:12px;text-align:center;color:#667b73;padding:24px}
 @media(max-width:600px){main{padding:12px}section{padding:12px}nav{position:sticky;top:0;background:#f4f7f5;z-index:3}table,thead,tbody,tr,td{display:block}thead{display:none}tr{border:1px solid #dce8e3;border-radius:12px;padding:12px;margin:12px 0}td{padding:6px 0;overflow-wrap:anywhere}td::before{content:attr(data-label);display:block;font-weight:700;color:#43665c;font-size:12px}textarea{width:100%;min-height:90px;border:1px solid #bbc9c4;border-radius:9px;font:inherit;padding:10px}} .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px}.tile{background:#edf5f1;padding:12px;border-radius:12px}.stat{font-size:24px;font-weight:700}.card{margin-bottom:14px}table{width:100%;border-collapse:collapse}td,th{padding:8px;text-align:left;border-bottom:1px solid #e4eae7}textarea{font:inherit}
 /* Visual responsivo: iPhone e computador */
@@ -82,6 +82,7 @@ if(legacy.length){await new Promise((resolve,reject)=>{const tx=db.transaction('
 let tail=Promise.resolve(),failure=null;
 const showError=error=>{let note=document.getElementById('storage-error');if(!note){note=document.createElement('div');note.id='storage-error';note.setAttribute('role','alert');note.style.cssText='position:sticky;top:0;z-index:10000;padding:16px;background:#fff0ed;color:#922;border:2px solid #a33';document.body.prepend(note);}note.textContent='Não foi possível gravar os dados. Mantenha esta página aberta e faça um backup pelo botão Exportar. '+(error?.name==='QuotaExceededError'?'O armazenamento disponível está cheio.':'Tente salvar novamente.');};
 const storage={
+keys(){return [...new Set([...cache.keys(),...Array.from({length:native.length},(_,i)=>native.key(i)).filter(Boolean)])];},
 getItem(key){key=String(key);return managed(key)?(cache.get(key)??null):native.getItem(key);},
 setItem(key,value){key=String(key);value=String(value);if(!managed(key)){native.setItem(key,value);return;}const previous=cache.get(key);cache.set(key,value);
 const write=()=>new Promise((resolve,reject)=>{const tx=db.transaction('values','readwrite');tx.objectStore('values').put(value,key);tx.oncomplete=()=>{failure=null;document.getElementById('storage-error')?.remove();resolve();};tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);});
@@ -386,6 +387,25 @@ const url=URL.createObjectURL(file);try{const img=await new Promise((resolve,rej
 const scale=Math.min(1,1600/Math.max(img.width,img.height));const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));const context=canvas.getContext('2d');context.fillStyle='#fff';context.fillRect(0,0,canvas.width,canvas.height);context.drawImage(img,0,0,canvas.width,canvas.height);const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.8));if(!blob)throw Error('Não foi possível preparar a foto.');return new File([blob],file.name.replace(/\.[^.]+$/,'')+'.jpg',{type:'image/jpeg'});}finally{URL.revokeObjectURL(url);}
 }
 
+
+async function recoverOnlyDebts(){
+const section='📋 Inadimplências',keys=typeof localStorage.keys==='function'?localStorage.keys():Array.from({length:localStorage.length},(_,i)=>localStorage.key(i));
+const candidates=[];
+function collect(value,depth=0){if(!value||typeof value!=='object'||depth>3)return;if(Array.isArray(value[section]))candidates.push(...value[section]);for(const key of ['records','local','remote','data','conteudo'])if(value[key]&&typeof value[key]==='object')collect(value[key],depth+1);}
+for(const key of keys){if(!/^gestao[-_]/i.test(key)||key===KEY||/debt-recovery-before/.test(key))continue;try{collect(JSON.parse(localStorage.getItem(key)||'null'));}catch{}}
+const next=JSON.parse(JSON.stringify(data));next[section]??=[];let added=0,files=0;
+for(const candidate of candidates){if(!candidate||typeof candidate!=='object'||!candidate.id||!String(candidate.nome||'').trim()||next._deleted?.[section]?.[String(candidate.id)])continue;
+const existing=next[section].find(row=>String(row.id)===String(candidate.id));
+if(!existing){next[section].push(JSON.parse(JSON.stringify(candidate)));added++;continue;}
+const attachments=Array.isArray(candidate.anexosDebitos)?candidate.anexosDebitos:[];
+if(attachments.length&&(!Array.isArray(existing.anexosDebitos)||!existing.anexosDebitos.length)){existing.anexosDebitos=JSON.parse(JSON.stringify(attachments));files+=attachments.length;}
+}
+if(!added&&!files)return {added:0,files:0};
+localStorage.setItem(KEY+'-debt-recovery-before',JSON.stringify({createdAt:new Date().toISOString(),records:data}));
+await window.GESTAO_STORAGE_FLUSH();
+localStorage.setItem(KEY,JSON.stringify(next));await window.GESTAO_STORAGE_FLUSH();data=next;return {added,files};
+}
+
 function setupDebtAttachments(){
 debtAttachmentDraft=[];debtAttachmentReading=false;const panel=document.createElement('div');panel.style.gridColumn='1/-1';panel.innerHTML='<label for="debt-attachment-input">Foto ou arquivo dos débitos</label><input id="debt-attachment-input" type="file" multiple><p class="muted">Fotos grandes são reduzidas automaticamente. Limite de 2 MB por arquivo e 3 MB por cadastro. Toque em Salvar cadastro ou Salvar alterações para gravar.</p><p id="debt-attachment-status" role="status"></p><div id="debt-attachment-list"></div>';
 $('entry').querySelector('.actions').before(panel);drawDebtAttachments();
@@ -490,6 +510,8 @@ search.oninput=apply;$('medium-doc-clear').onclick=()=>{search.value='';apply();
 }
 
 if(current==='📋 Inadimplências'){
+const recovery=document.createElement('div');recovery.className='card';recovery.innerHTML='<h2>Recuperar somente Inadimplências</h2><p>Buscar cadastros e anexos em cópias ainda salvas neste navegador. Os dados preenchidos são mantidos.</p><button type="button" id="recover-only-debts">Buscar registros desta aba</button><p id="recover-only-debts-status" role="status"></p>';$('view').prepend(recovery);
+$('recover-only-debts').onclick=async()=>{const button=$('recover-only-debts'),status=$('recover-only-debts-status');button.disabled=true;status.textContent='Buscando registros salvos…';try{if(window.GESTAO_UNSAVED_FORM){status.textContent='Salve as alterações do formulário antes de recuperar.';return;}const result=await recoverOnlyDebts();if(result.added||result.files){render();$('recover-only-debts-status').textContent=result.added+' cadastro(s) e '+result.files+' anexo(s) recuperado(s).';}else status.textContent='Nenhum cadastro ou anexo adicional encontrado neste navegador. Digitações que não foram salvas não podem ser recuperadas por esta busca.';}catch(error){status.textContent='Não foi possível recuperar: '+error.message;}finally{button.disabled=false;}};
 setupDebtAttachments();
 $('f_nome').required=true;$('f_nome').placeholder='Nome da pessoa responsável pelo débito';$('f_data').required=true;
 const today=new Date();$('f_data').value=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
