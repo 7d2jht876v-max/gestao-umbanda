@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#164b43"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Gestão Umbanda"><title>Gestão Umbanda — atualização 89</title><style>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#164b43"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Gestão Umbanda"><title>Gestão Umbanda — atualização 90</title><style>
 :root{font-family:system-ui,-apple-system,sans-serif;color:#183a34;background:#f4f7f5}*{box-sizing:border-box}body{margin:0}header{background:#164b43;color:white;padding:24px 18px}h1{margin:0;font-size:26px}header p{margin:6px 0 0;opacity:.9}main{max-width:720px;margin:auto;padding:18px}.notice{background:#fff3d7;border:1px solid #e6c575;padding:13px;border-radius:12px;font-size:14px}nav{display:flex;gap:8px;overflow:auto;padding:16px 0}button{border:0;border-radius:10px;padding:12px 15px;background:#16685b;color:white;font-weight:650;cursor:pointer}nav button{white-space:nowrap;background:#e0ebe7;color:#164b43}nav button.active{background:#16685b;color:white}section{background:white;border-radius:14px;padding:18px;box-shadow:0 2px 12px #1232}h2{margin-top:0}label{display:block;font-weight:600;margin:14px 0 5px}input,select{width:100%;padding:12px;border:1px solid #bbc9c4;border-radius:9px;font:inherit}.item{padding:13px 0;border-bottom:1px solid #e2e9e6;overflow-wrap:anywhere}.item small{display:block;color:#61736d;margin-top:4px}.muted{color:#647770}.danger{background:#9e3c3c;margin-top:15px}footer{font-size:12px;text-align:center;color:#667b73;padding:24px}
 @media(max-width:600px){main{padding:12px}section{padding:12px}nav{position:sticky;top:0;background:#f4f7f5;z-index:3}table,thead,tbody,tr,td{display:block}thead{display:none}tr{border:1px solid #dce8e3;border-radius:12px;padding:12px;margin:12px 0}td{padding:6px 0;overflow-wrap:anywhere}td::before{content:attr(data-label);display:block;font-weight:700;color:#43665c;font-size:12px}textarea{width:100%;min-height:90px;border:1px solid #bbc9c4;border-radius:9px;font:inherit;padding:10px}} .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px}.tile{background:#edf5f1;padding:12px;border-radius:12px}.stat{font-size:24px;font-weight:700}.card{margin-bottom:14px}table{width:100%;border-collapse:collapse}td,th{padding:8px;text-align:left;border-bottom:1px solid #e4eae7}textarea{font:inherit}
 /* Visual responsivo: iPhone e computador */
@@ -252,7 +252,18 @@ try{
  localStorage.setItem(KEY,JSON.stringify(next));data=next;render();payload.result={ok:true,added};
 }catch(error){payload.result={ok:false,error:error.message};}
 });
+window.GESTAO_UNSAVED_FORM=false;
+$('view').addEventListener('input',e=>{if(e.target.closest('#entry'))window.GESTAO_UNSAVED_FORM=true;});
+window.addEventListener('gestao-aplicar-sincronizacao',event=>{
+const detail=event.detail;if(!detail?.records)return;
+try{
+ const next=detail.records;
+ for(const [suffix,value] of Object.entries(next._sync_financial_status||{}))if(['_sessoes_exu_status_v1','_sessoes_cigana_status_v1','_financeiro_extra_status_v1'].includes(suffix))localStorage.setItem(KEY+suffix,JSON.stringify(value));
+ localStorage.setItem(KEY,JSON.stringify(next));data=next;if(!window.GESTAO_UNSAVED_FORM)render();detail.result={ok:true};
+}catch(error){detail.result={ok:false,error:error.message};}
+});
 function render(){
+window.GESTAO_UNSAVED_FORM=false;
 $('nav').innerHTML=sections.filter(s=>s!=='🗓️ Mensalidades'&&s!=='🎥 Videoaulas').map(s=>'<button type="button" data-tab="'+esc(s)+'" aria-current="'+(s===current)+'">'+esc(sectionLabel(s))+'</button>').join('');
 document.getElementById('ficha-radiestesia').hidden=current!=='📋 Prontuário consulente radiestesia';
 if(current==='📋 Prontuário consulente radiestesia'){$('view').replaceChildren();document.getElementById('ficha-radiestesia').scrollIntoView({behavior:'smooth',block:'start'});return;}
@@ -594,8 +605,9 @@ msg(error?'Não foi possível publicar: '+errorText(error):'Cadastros individuai
 async function refresh(){if(recovering){showRecoveryForm();return;}const {data:{user},error}=await client.auth.getUser();if(error||!user){role=null;msg('Entre com seu e-mail e senha cadastrados no Supabase. Os dados atuais permanecem no iPhone.');formLogin();return;}
 const result=await client.from('perfis').select('perfil').eq('id',user.id).single();if(result.error){role=null;msg('Login realizado, mas o perfil não foi encontrado: '+errorText(result.error));controls.innerHTML='<button id="cloud-out">Sair</button>';root.querySelector('#cloud-out').onclick=logout;return;}
 role=result.data.perfil;if(role!=='admin'){await showMediumPortal();return;}setAccess(true);msg('Conectado: '+user.email+' • '+(role==='admin'?'Administrador':'Médium')+'. Sincronização manual: confira os dados antes de substituir.');
-controls.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap"><button id="medium-publish">Publicar dados individuais dos médiuns</button><button id="cloud-load">Carregar dados da nuvem</button>'+(role==='admin'?'<button id="cloud-save">Enviar dados para nuvem</button>':'')+'<button id="cloud-out" style="background:#666">Sair</button></div>';
+controls.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap"><button id="medium-publish">Publicar dados individuais dos médiuns</button><button id="cloud-load">Carregar dados da nuvem</button>'+(role==='admin'?'<button id="cloud-save">Enviar dados para nuvem</button>':'')+'<button id="cloud-device-sync">Atualizar e sincronizar com tablet</button><button id="cloud-out" style="background:#666">Sair</button></div>';
 root.querySelector('#cloud-out').onclick=logout;
+root.querySelector('#cloud-device-sync').onclick=()=>void synchronizeDevices(true);
 root.querySelector('#medium-publish').onclick=publishMediumData;
 if(new URLSearchParams(location.search).get('publicar')==='1'){
  const publishButton=root.querySelector('#medium-publish');
@@ -605,8 +617,89 @@ if(new URLSearchParams(location.search).get('publicar')==='1'){
 }
 root.querySelector('#cloud-load').onclick=load;
 if(role==='admin')root.querySelector('#cloud-save').onclick=upload;
-void recoverFoundData();
+void recoverFoundData().then(()=>synchronizeDevices(false));
 }
+function syncCanonical(value){
+ if(Array.isArray(value))return '['+value.map(syncCanonical).join(',')+']';
+ if(value&&typeof value==='object')return '{'+Object.keys(value).sort().map(k=>JSON.stringify(k)+':'+syncCanonical(value[k])).join(',')+'}';
+ return JSON.stringify(value);
+}
+function mergeDeviceData(remote,local,base){
+ const result={...remote};let conflicts=0;
+ const same=(a,b)=>syncCanonical(a)===syncCanonical(b);
+ for(const [key,value] of Object.entries(local)){
+  const other=remote[key],previous=base[key];
+  if(Array.isArray(value)&&Array.isArray(other)){
+   const rows=JSON.parse(JSON.stringify(other));
+   for(const item of value){
+    if(!item||typeof item!=='object'||!item.id){if(!rows.some(r=>same(r,item)))rows.push(item);continue;}
+    const index=rows.findIndex(r=>r&&r.id===item.id);
+    if(index<0){rows.push(item);continue;}
+    if(same(rows[index],item))continue;
+    const prior=Array.isArray(previous)?previous.find(r=>r&&r.id===item.id):null;
+    if(prior&&same(item,prior))continue;
+    if(prior&&same(rows[index],prior)){rows[index]=item;continue;}
+    const clean=r=>Object.fromEntries(Object.entries(r).filter(([k])=>!['id','_syncConflict'].includes(k)));
+    if(rows.some(r=>r&&same(clean(r),clean(item))))continue;
+    rows.push({...item,id:crypto.randomUUID(),_syncConflict:'Versão preservada de outro aparelho'});conflicts++;
+   }
+   result[key]=rows;
+  }else if(other===undefined||same(other,value)){result[key]=value;}
+  else if(same(value,previous)){result[key]=other;}
+  else if(same(other,previous)){result[key]=value;}
+  else if(value&&other&&typeof value==='object'&&typeof other==='object'&&!Array.isArray(value)&&!Array.isArray(other)){
+   const merged=mergeDeviceData(other,value,previous||{});result[key]=merged.data;conflicts+=merged.conflicts;
+  }else{result[key]=value;conflicts++;}
+ }
+ return{data:result,conflicts};
+}
+let deviceSyncBusy=false;
+async function synchronizeDevices(push=false){
+ if(role!=='admin'||deviceSyncBusy||(!push&&window.GESTAO_UNSAVED_FORM))return;
+ deviceSyncBusy=true;const button=root.querySelector('#cloud-device-sync');
+ if(button)button.disabled=true;
+ try{
+  if(push&&window.GESTAO_UNSAVED_FORM){document.getElementById('entry')?.requestSubmit();if(window.GESTAO_UNSAVED_FORM)throw Error('Preencha os campos obrigatórios e salve o cadastro antes de sincronizar.');}
+  if(push&&window.GESTAO_RADIO_DIRTY){document.querySelector('[data-rf-save]')?.click();if(window.GESTAO_RADIO_DIRTY)throw Error('Confira e salve a ficha de Radiestesia antes de sincronizar.');}
+  const {data:session}=await client.auth.getSession();const user=session.session?.user;
+  if(!user)throw Error('Entre com sua conta para sincronizar.');
+  const baseKey=localKey+'-device-sync-base-'+user.id;
+  let base={};try{base=JSON.parse(localStorage.getItem(baseKey)||'{}')}catch{}
+  const {data:row,error}=await client.from('gestao_dados').select('conteudo,atualizado_em').eq('id','templo').maybeSingle();
+  if(error)throw error;
+  const remote=row?.conteudo||{},local=JSON.parse(localStorage.getItem(localKey)||'{}');
+  const aux={};
+  for(const suffix of ['_sessoes_exu_status_v1','_sessoes_cigana_status_v1','_financeiro_extra_status_v1']){
+   const stored=localStorage.getItem(localKey+suffix);if(stored)try{aux[suffix]=JSON.parse(stored)}catch{}
+  }
+  if(Object.keys(aux).length)local._sync_financial_status=aux;
+  const merged=mergeDeviceData(remote,local,base);
+  if(push){
+   msg('Atualizando e sincronizando com o tablet…');
+   localStorage.setItem(localKey+'-before-device-sync',JSON.stringify({records:local,remote,createdAt:new Date().toISOString()}));
+   const {error:writeError}=await client.rpc('sincronizar_gestao',{conteudo_novo:merged.data,versao_esperada:row?.atualizado_em||null});
+   if(writeError)throw writeError;
+  }
+  const changed=syncCanonical(local)!==syncCanonical(merged.data);
+  if(changed){
+   const detail={records:merged.data,result:null};window.dispatchEvent(new CustomEvent('gestao-aplicar-sincronizacao',{detail}));
+   if(!detail.result?.ok)throw Error(detail.result?.error||'Não foi possível atualizar os dados deste aparelho.');
+   for(const [suffix,value] of Object.entries(merged.data._sync_financial_status||{})){
+    if(['_sessoes_exu_status_v1','_sessoes_cigana_status_v1','_financeiro_extra_status_v1'].includes(suffix))localStorage.setItem(localKey+suffix,JSON.stringify(value));
+   }
+  }
+  localStorage.setItem(baseKey,JSON.stringify(push?merged.data:remote));
+  if(push){
+   if(window.GESTAO_RADIO_SYNC)await window.GESTAO_RADIO_SYNC();
+   const radio=document.getElementById('rf-cloud-status')?.textContent||'';
+   msg('Sincronização concluída. Abra o app no tablet com a mesma conta e aguarde até 15 segundos.'+(merged.conflicts?' Edições diferentes foram preservadas em cópias.':'')+(radio&&!radio.startsWith('Sincronizado com')?' Confira também o estado da sincronização na Radiestesia.':''));
+  }
+ }catch(error){if(push)msg('Não foi possível concluir: '+errorText(error)+'. Os dados deste aparelho foram mantidos.');}
+ finally{deviceSyncBusy=false;if(button)button.disabled=false;}
+}
+setInterval(()=>{if(!document.hidden)void synchronizeDevices(false)},15000);
+window.addEventListener('online',()=>void synchronizeDevices(false));
+
 async function recoverFoundData(){
  if(role!=='admin')return;
  let feedback=root.querySelector('#recovery-found-status');
@@ -651,7 +744,7 @@ initializeRecovery();
  }catch(e){status.textContent='Não foi possível recuperar o cadastro anterior: '+e.message;return 0;}
 }
 recoverTerezinha();
-function number(r){return r.values.numeroProntuario||'Sem número'}function summary(){const target=document.getElementById('rf-summary-list'),q=document.getElementById('rf-search').value.trim().toLocaleLowerCase('pt-BR');target.replaceChildren();const filtered=records.filter(r=>((r.values['C13:1']||'')+' '+number(r)).toLocaleLowerCase('pt-BR').includes(q)).sort((a,b)=>(a.values['C13:1']||'').localeCompare(b.values['C13:1']||'','pt-BR'));document.getElementById('rf-total').textContent=filtered.length+' prontuário(s) encontrado(s)';filtered.forEach(r=>{const card=document.createElement('div');card.className='consulente-summary';const name=document.createElement('strong');name.textContent=r.values['C13:1']||'Consulente sem nome';const p=document.createElement('p');p.textContent='Prontuário nº '+number(r);const date=document.createElement('p');date.textContent='Data: '+(r.values['C11:1']||'Não informada')+' · '+r.lines.length+' linha(s) de acompanhamento';const b=document.createElement('button');b.type='button';b.textContent='Abrir / Editar ficha';b.onclick=()=>{select.value=r.id;select.onchange();document.getElementById('rf-number').scrollIntoView({behavior:'smooth',block:'center'})};card.append(name,p,date,b);target.append(card)})}document.getElementById('rf-search').oninput=summary;function list(){select.replaceChildren(new Option('Novo atendimento',''));records.forEach((r,i)=>select.add(new Option((r.values['C13:1']||'Atendimento '+(i+1))+' — Prontuário '+number(r),r.id)));select.value=id;summary()}function add(line={date:'',note:''}){const row=document.createElement('div');row.className='rf-row';const date=document.createElement('input');date.type='date';date.value=line.date;date.setAttribute('aria-label','Data de acompanhamento');const note=document.createElement('textarea');note.value=line.note;note.placeholder='Observações / acompanhamento';note.setAttribute('aria-label','Observações de acompanhamento');const remove=document.createElement('button');remove.type='button';remove.textContent='Remover linha';remove.onclick=()=>row.remove();row.append(date,note,remove);lines.append(row)}function reset(){id='';form.reset();lines.replaceChildren();select.value='';status.textContent='Novo atendimento.'}document.getElementById('rf-new').onclick=()=>{if(confirm('Limpar os campos atuais? As fichas salvas serão mantidas.'))reset()};document.getElementById('rf-add').onclick=()=>add();select.onchange=()=>{const r=records.find(r=>r.id===select.value);reset();if(!r)return;id=r.id;select.value=id;for(const el of form.querySelectorAll('input[name],textarea[name]')){if(el.type==='radio'||el.type==='checkbox')el.checked=r.values[el.name]===el.value;else el.value=r.values[el.name]||''}r.lines.forEach(add);status.textContent='Ficha carregada para edição.'};document.querySelectorAll('[data-rf-save]').forEach(b=>b.onclick=()=>{const values=Object.fromEntries(new FormData(form));if(!String(values.numeroAtendimento||'').trim()){values.numeroAtendimento=String(Math.max(0,...records.map(r=>Number(r.values.numeroAtendimento)||0))+1).padStart(4,'0');document.getElementById('rf-attendance-number').value=values.numeroAtendimento;}else values.numeroAtendimento=values.numeroAtendimento.trim();if(!String(values.numeroProntuario||'').trim()){values.numeroProntuario=String(Math.max(0,...records.map(r=>Number(r.values.numeroProntuario)||0))+1).padStart(4,'0');document.getElementById('rf-number').value=values.numeroProntuario;}else values.numeroProntuario=values.numeroProntuario.trim();if(records.some(r=>r.id!==id&&r.values.numeroProntuario===values.numeroProntuario)){status.textContent='Este número de prontuário já está em uso. Informe outro número.';return;}const record={id:id||crypto.randomUUID(),values,lines:[...lines.children].map(row=>({date:row.querySelector('input').value,note:row.querySelector('textarea').value}))};const next=records.filter(r=>r.id!==record.id).concat(record);try{localStorage.setItem(key,JSON.stringify(next));records=next;id=record.id;list();queueCloud(record);status.textContent='Atendimento salvo. Enviando para a nuvem…'}catch(e){status.textContent='Não foi possível salvar. Confira o espaço disponível no aparelho.'}});const transferStatus=document.getElementById('rf-transfer-status');document.getElementById('rf-export').onclick=()=>{if(!records.length){transferStatus.textContent='Nenhuma ficha salva neste aparelho. Toque em Salvar atendimento primeiro.';return;}const blob=new Blob([JSON.stringify({format:'gestao-radiestesia',version:1,exportedAt:new Date().toISOString(),records},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='fichas-radiestesia-'+new Date().toISOString().slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);transferStatus.textContent=records.length+' ficha(s) exportada(s). Envie o arquivo ao outro aparelho e use Importar fichas de radiestesia.';};document.getElementById('rf-import').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{const obj=JSON.parse(await file.text());if(obj.format!=='gestao-radiestesia'||obj.version!==1||!Array.isArray(obj.records))throw Error('Selecione um arquivo de fichas de radiestesia exportado nesta seção.');for(const r of obj.records){if(!r||typeof r.id!=='string'||!r.id||!r.values||Array.isArray(r.values)||typeof r.values!=='object'||Object.values(r.values).some(v=>typeof v!=='string')||!Array.isArray(r.lines)||r.lines.some(l=>!l||typeof l.date!=='string'||typeof l.note!=='string'))throw Error('O arquivo contém uma ficha inválida.');}const next=JSON.parse(JSON.stringify(records));let added=0;for(const r of obj.records){const match=next.find(x=>x.id===r.id);if(match&&JSON.stringify(match)===JSON.stringify(r))continue;const copy=JSON.parse(JSON.stringify(r));if(match)copy.id=crypto.randomUUID();if(next.some(x=>x.values.numeroProntuario&&x.values.numeroProntuario===copy.values.numeroProntuario))copy.values.numeroProntuario=(copy.values.numeroProntuario||'')+' (importado '+crypto.randomUUID().slice(0,6)+')';next.push(copy);added++;}localStorage.setItem(key,JSON.stringify(next));records=next;for(const r of records)pending.add(r.id);persistMeta();list();void syncCloud();transferStatus.textContent=added+' ficha(s) importada(s). Consulte o resumo abaixo. Os registros anteriores foram mantidos.';}catch(err){transferStatus.textContent='Não foi possível importar: '+err.message;}finally{e.target.value='';}};form.onsubmit=e=>e.preventDefault();list();async function radioTransport(url,options){
+function number(r){return r.values.numeroProntuario||'Sem número'}function summary(){const target=document.getElementById('rf-summary-list'),q=document.getElementById('rf-search').value.trim().toLocaleLowerCase('pt-BR');target.replaceChildren();const filtered=records.filter(r=>((r.values['C13:1']||'')+' '+number(r)).toLocaleLowerCase('pt-BR').includes(q)).sort((a,b)=>(a.values['C13:1']||'').localeCompare(b.values['C13:1']||'','pt-BR'));document.getElementById('rf-total').textContent=filtered.length+' prontuário(s) encontrado(s)';filtered.forEach(r=>{const card=document.createElement('div');card.className='consulente-summary';const name=document.createElement('strong');name.textContent=r.values['C13:1']||'Consulente sem nome';const p=document.createElement('p');p.textContent='Prontuário nº '+number(r);const date=document.createElement('p');date.textContent='Data: '+(r.values['C11:1']||'Não informada')+' · '+r.lines.length+' linha(s) de acompanhamento';const b=document.createElement('button');b.type='button';b.textContent='Abrir / Editar ficha';b.onclick=()=>{select.value=r.id;select.onchange();document.getElementById('rf-number').scrollIntoView({behavior:'smooth',block:'center'})};card.append(name,p,date,b);target.append(card)})}document.getElementById('rf-search').oninput=summary;function list(){select.replaceChildren(new Option('Novo atendimento',''));records.forEach((r,i)=>select.add(new Option((r.values['C13:1']||'Atendimento '+(i+1))+' — Prontuário '+number(r),r.id)));select.value=id;summary()}function add(line={date:'',note:''}){const row=document.createElement('div');row.className='rf-row';const date=document.createElement('input');date.type='date';date.value=line.date;date.setAttribute('aria-label','Data de acompanhamento');const note=document.createElement('textarea');note.value=line.note;note.placeholder='Observações / acompanhamento';note.setAttribute('aria-label','Observações de acompanhamento');const remove=document.createElement('button');remove.type='button';remove.textContent='Remover linha';remove.onclick=()=>row.remove();row.append(date,note,remove);lines.append(row)}function reset(){id='';form.reset();lines.replaceChildren();select.value='';status.textContent='Novo atendimento.'}document.getElementById('rf-new').onclick=()=>{if(confirm('Limpar os campos atuais? As fichas salvas serão mantidas.'))reset()};document.getElementById('rf-add').onclick=()=>add();select.onchange=()=>{const r=records.find(r=>r.id===select.value);reset();if(!r)return;id=r.id;select.value=id;for(const el of form.querySelectorAll('input[name],textarea[name]')){if(el.type==='radio'||el.type==='checkbox')el.checked=r.values[el.name]===el.value;else el.value=r.values[el.name]||''}r.lines.forEach(add);status.textContent='Ficha carregada para edição.'};document.querySelectorAll('[data-rf-save]').forEach(b=>b.onclick=()=>{const values=Object.fromEntries(new FormData(form));if(!String(values.numeroAtendimento||'').trim()){values.numeroAtendimento=String(Math.max(0,...records.map(r=>Number(r.values.numeroAtendimento)||0))+1).padStart(4,'0');document.getElementById('rf-attendance-number').value=values.numeroAtendimento;}else values.numeroAtendimento=values.numeroAtendimento.trim();if(!String(values.numeroProntuario||'').trim()){values.numeroProntuario=String(Math.max(0,...records.map(r=>Number(r.values.numeroProntuario)||0))+1).padStart(4,'0');document.getElementById('rf-number').value=values.numeroProntuario;}else values.numeroProntuario=values.numeroProntuario.trim();if(records.some(r=>r.id!==id&&r.values.numeroProntuario===values.numeroProntuario)){status.textContent='Este número de prontuário já está em uso. Informe outro número.';return;}const record={id:id||crypto.randomUUID(),values,lines:[...lines.children].map(row=>({date:row.querySelector('input').value,note:row.querySelector('textarea').value}))};const next=records.filter(r=>r.id!==record.id).concat(record);try{localStorage.setItem(key,JSON.stringify(next));records=next;id=record.id;list();window.GESTAO_RADIO_DIRTY=false;queueCloud(record);status.textContent='Atendimento salvo. Enviando para a nuvem…'}catch(e){status.textContent='Não foi possível salvar. Confira o espaço disponível no aparelho.'}});const transferStatus=document.getElementById('rf-transfer-status');document.getElementById('rf-export').onclick=()=>{if(!records.length){transferStatus.textContent='Nenhuma ficha salva neste aparelho. Toque em Salvar atendimento primeiro.';return;}const blob=new Blob([JSON.stringify({format:'gestao-radiestesia',version:1,exportedAt:new Date().toISOString(),records},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='fichas-radiestesia-'+new Date().toISOString().slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);transferStatus.textContent=records.length+' ficha(s) exportada(s). Envie o arquivo ao outro aparelho e use Importar fichas de radiestesia.';};document.getElementById('rf-import').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{const obj=JSON.parse(await file.text());if(obj.format!=='gestao-radiestesia'||obj.version!==1||!Array.isArray(obj.records))throw Error('Selecione um arquivo de fichas de radiestesia exportado nesta seção.');for(const r of obj.records){if(!r||typeof r.id!=='string'||!r.id||!r.values||Array.isArray(r.values)||typeof r.values!=='object'||Object.values(r.values).some(v=>typeof v!=='string')||!Array.isArray(r.lines)||r.lines.some(l=>!l||typeof l.date!=='string'||typeof l.note!=='string'))throw Error('O arquivo contém uma ficha inválida.');}const next=JSON.parse(JSON.stringify(records));let added=0;for(const r of obj.records){const match=next.find(x=>x.id===r.id);if(match&&JSON.stringify(match)===JSON.stringify(r))continue;const copy=JSON.parse(JSON.stringify(r));if(match)copy.id=crypto.randomUUID();if(next.some(x=>x.values.numeroProntuario&&x.values.numeroProntuario===copy.values.numeroProntuario))copy.values.numeroProntuario=(copy.values.numeroProntuario||'')+' (importado '+crypto.randomUUID().slice(0,6)+')';next.push(copy);added++;}localStorage.setItem(key,JSON.stringify(next));records=next;for(const r of records)pending.add(r.id);persistMeta();list();void syncCloud();transferStatus.textContent=added+' ficha(s) importada(s). Consulte o resumo abaixo. Os registros anteriores foram mantidos.';}catch(err){transferStatus.textContent='Não foi possível importar: '+err.message;}finally{e.target.value='';}};form.onsubmit=e=>e.preventDefault();list();async function radioTransport(url,options){
  const client=window.GESTAO_RADIO_CLIENT;if(!client)throw Error('A conexão ainda não carregou. Aguarde ou atualize a página.');
  const {data:sessionData,error:sessionError}=await client.auth.getSession();if(sessionError||!sessionData.session)throw Error('Entre com o mesmo e-mail e senha no acesso seguro, nos dois aparelhos.');
  const user=sessionData.session.user;
@@ -669,7 +762,7 @@ for(const r of records)if(!revisions[r.id])pending.add(r.id);
 function persistMeta(){localStorage.setItem(metaKey,JSON.stringify(revisions));localStorage.setItem(pendingKey,JSON.stringify([...pending]));}
 const priorSelectChange=select.onchange;select.onchange=()=>{priorSelectChange();form.dataset.cloudRecord=id;form.dataset.cloudBase=String(revisions[id]||0);};
 function queueCloud(record){if(form.dataset.cloudRecord===record.id)revisions[record.id]=Number(form.dataset.cloudBase||0);pending.add(record.id);persistMeta();void syncCloud();}
-form.addEventListener('input',()=>{editDirty=true;});
+form.addEventListener('input',()=>{editDirty=true;window.GESTAO_RADIO_DIRTY=true;});
 async function syncCloud(){
  if(syncing)return;syncing=true;
  try{
@@ -702,6 +795,7 @@ async function syncCloud(){
  }catch(err){syncText.textContent=err.message+' Tentaremos novamente automaticamente.';}
  finally{syncing=false;}
 }
+window.GESTAO_RADIO_SYNC=syncCloud;
 document.getElementById('rf-sync-now').onclick=()=>void syncCloud();
 window.addEventListener('online',()=>void syncCloud());
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)void syncCloud();});
