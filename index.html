@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#164b43"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Gestão Umbanda"><title>Gestão Umbanda — atualização 90</title><style>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#164b43"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Gestão Umbanda"><title>Gestão Umbanda — atualização 91</title><style>
 :root{font-family:system-ui,-apple-system,sans-serif;color:#183a34;background:#f4f7f5}*{box-sizing:border-box}body{margin:0}header{background:#164b43;color:white;padding:24px 18px}h1{margin:0;font-size:26px}header p{margin:6px 0 0;opacity:.9}main{max-width:720px;margin:auto;padding:18px}.notice{background:#fff3d7;border:1px solid #e6c575;padding:13px;border-radius:12px;font-size:14px}nav{display:flex;gap:8px;overflow:auto;padding:16px 0}button{border:0;border-radius:10px;padding:12px 15px;background:#16685b;color:white;font-weight:650;cursor:pointer}nav button{white-space:nowrap;background:#e0ebe7;color:#164b43}nav button.active{background:#16685b;color:white}section{background:white;border-radius:14px;padding:18px;box-shadow:0 2px 12px #1232}h2{margin-top:0}label{display:block;font-weight:600;margin:14px 0 5px}input,select{width:100%;padding:12px;border:1px solid #bbc9c4;border-radius:9px;font:inherit}.item{padding:13px 0;border-bottom:1px solid #e2e9e6;overflow-wrap:anywhere}.item small{display:block;color:#61736d;margin-top:4px}.muted{color:#647770}.danger{background:#9e3c3c;margin-top:15px}footer{font-size:12px;text-align:center;color:#667b73;padding:24px}
 @media(max-width:600px){main{padding:12px}section{padding:12px}nav{position:sticky;top:0;background:#f4f7f5;z-index:3}table,thead,tbody,tr,td{display:block}thead{display:none}tr{border:1px solid #dce8e3;border-radius:12px;padding:12px;margin:12px 0}td{padding:6px 0;overflow-wrap:anywhere}td::before{content:attr(data-label);display:block;font-weight:700;color:#43665c;font-size:12px}textarea{width:100%;min-height:90px;border:1px solid #bbc9c4;border-radius:9px;font:inherit;padding:10px}} .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px}.tile{background:#edf5f1;padding:12px;border-radius:12px}.stat{font-size:24px;font-weight:700}.card{margin-bottom:14px}table{width:100%;border-collapse:collapse}td,th{padding:8px;text-align:left;border-bottom:1px solid #e4eae7}textarea{font:inherit}
 /* Visual responsivo: iPhone e computador */
@@ -101,7 +101,7 @@ study:['Videoaula','Material de estudo','Outro'],yesno:['Sim','Não'],payment:['
 const sections=[...Object.keys(configs)];const financeTab=sections.indexOf('💰 Financeiro');sections.splice(financeTab>=0?financeTab+1:1,0,'📋 Inadimplências');
 const sectionLabel=s=>s==='📖 Características dos Orixás'?'📖 Características dos filhos de cada orixá':s==='📋 Atendimentos'?'📋 Atendimento / Jogo / Radiestesia':s;
 const blank=()=>Object.fromEntries(sections.filter(s=>configs[s]).map(s=>[s,[]]));
-let data=blank();try{const d=JSON.parse(localStorage.getItem(KEY)||'null');if(d&&typeof d==='object')for(const s of Object.keys(data))if(Array.isArray(d[s]))data[s]=d[s]}catch(e){}
+let data=blank();try{const d=JSON.parse(localStorage.getItem(KEY)||'null');if(d&&typeof d==='object'){for(const s of Object.keys(data))if(Array.isArray(d[s]))data[s]=d[s];if(d._deleted&&typeof d._deleted==='object')data._deleted=d._deleted;}}catch(e){}
 let current=sections[0];
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -245,7 +245,7 @@ try{
  for(const name of ['👥 Médiuns','💰 Financeiro']){
   if(!Array.isArray(next[name]))next[name]=[];
   for(const row of payload.records[name]||[]){
-   if(!row||!row.id)continue;
+   if(!row||!row.id||next._deleted?.[name]?.[String(row.id)])continue;
    if(!next[name].some(existing=>existing.id===row.id)){next[name].push(JSON.parse(JSON.stringify(row)));added++;}
   }
  }
@@ -405,7 +405,7 @@ cell.replaceChildren(link);
 }
 function summaryTasks(){const tasks=data['🧹 Tarefas'];if(!tasks.length)return '<p class="muted">Cadastre tarefas e responsáveis para visualizar o resumo.</p>';return '<ul>'+tasks.map(t=>'<li>'+esc(t.medium||'Sem responsável')+' — '+esc(t.tarefa||'Atividade')+' ('+esc(t.status||'Pendente')+')</li>').join('')+'</ul>'}
 $('nav').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b){current=b.dataset.tab;render()}});
-$('view').addEventListener('click',e=>{const edit=e.target.closest('[data-edit]');if(edit){const row=data[current].find(r=>r.id===edit.dataset.edit);if(!row)return;$('entry').dataset.editId=row.id;for(const [k] of configs[current]){$('f_'+k).value=row[k]||'';if(k==='imagem')$('preview_'+k).innerHTML=row[k]?'<img src="'+esc(row[k])+'" alt="Ponto riscado do guardião">':'Nenhuma imagem selecionada';}if(current==='📅 Sessões'){$('entry').querySelector('.attendance-panel').outerHTML=sessionAttendanceForm(row.presencas||[]);updateAttendanceTotals();}if(current==='👥 Médiuns'){categoryByMediumSummary(row.nome);}$('entry').querySelector('button[type=submit]').textContent='Salvar alterações';$('entry').scrollIntoView({behavior:'smooth',block:'start'});return}const b=e.target.closest('[data-delete]');if(!b)return;if(!confirm('Excluir este cadastro desta versão?'))return;data[current]=data[current].filter(r=>r.id!==b.dataset.delete);save();render()});
+$('view').addEventListener('click',e=>{const edit=e.target.closest('[data-edit]');if(edit){const row=data[current].find(r=>r.id===edit.dataset.edit);if(!row)return;$('entry').dataset.editId=row.id;for(const [k] of configs[current]){$('f_'+k).value=row[k]||'';if(k==='imagem')$('preview_'+k).innerHTML=row[k]?'<img src="'+esc(row[k])+'" alt="Ponto riscado do guardião">':'Nenhuma imagem selecionada';}if(current==='📅 Sessões'){$('entry').querySelector('.attendance-panel').outerHTML=sessionAttendanceForm(row.presencas||[]);updateAttendanceTotals();}if(current==='👥 Médiuns'){categoryByMediumSummary(row.nome);}$('entry').querySelector('button[type=submit]').textContent='Salvar alterações';$('entry').scrollIntoView({behavior:'smooth',block:'start'});return}const b=e.target.closest('[data-delete]');if(!b)return;if(!confirm('Excluir este cadastro? A exclusão será sincronizada com os outros aparelhos.'))return;try{const next=JSON.parse(JSON.stringify(data)),recordId=String(b.dataset.delete);next._deleted=next._deleted||{};next._deleted[current]=next._deleted[current]||{};next._deleted[current][recordId]=new Date().toISOString();next[current]=next[current].filter(r=>String(r.id)!==recordId);localStorage.setItem(KEY,JSON.stringify(next));data=next;render();window.dispatchEvent(new Event('gestao-exclusao'));}catch(error){alert('Não foi possível excluir: '+error.message)}});
 document.getElementById('export').onclick=()=>{const blob=new Blob([JSON.stringify({version:2,exportedAt:new Date().toISOString(),records:data},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='backup-gestao-umbanda-'+new Date().toISOString().slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
 document.getElementById('import').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const o=JSON.parse(await f.text());if(o.version!==2||!o.records||!sections.slice(1).every(s=>Array.isArray(o.records[s])))throw Error('Formato inválido');if(!confirm('Substituir os cadastros locais desta versão pelos do backup?'))return;data=Object.fromEntries(sections.slice(1).map(s=>[s,o.records[s]]));save();render();alert('Backup importado.')}catch(err){alert('Não foi possível importar: '+err.message)}finally{e.target.value=''}};
 render();
@@ -433,6 +433,7 @@ function mergeBrowserRecovery(current,sources){
     if(target==='💰 Financeiro')row.descricao??=row.nome;
     for(const key of Object.keys(row))if(row[key]===undefined)delete row[key];
     const fingerprintValue=fingerprint(row);row.id=row.id||'recuperado-'+hash(target+'|'+fingerprintValue);
+    if(result._deleted?.[target]?.[String(row.id)])continue;
     if(result[target].some(r=>r.id===row.id||fingerprint(r)===fingerprintValue))continue;
     result[target].push(row);added++;count++;
    }
@@ -626,12 +627,16 @@ function syncCanonical(value){
 }
 function mergeDeviceData(remote,local,base){
  const result={...remote};let conflicts=0;
+ const deleted={};for(const source of [remote._deleted||{},local._deleted||{}])for(const [tab,ids] of Object.entries(source))deleted[tab]={...(deleted[tab]||{}),...ids};
+ if(Object.keys(deleted).length)result._deleted=deleted;
  const same=(a,b)=>syncCanonical(a)===syncCanonical(b);
  for(const [key,value] of Object.entries(local)){
+  if(key==='_deleted')continue;
   const other=remote[key],previous=base[key];
   if(Array.isArray(value)&&Array.isArray(other)){
-   const rows=JSON.parse(JSON.stringify(other));
+   const rows=JSON.parse(JSON.stringify(other)).filter(r=>!r||!deleted[key]?.[String(r.id)]);
    for(const item of value){
+    if(item&&deleted[key]?.[String(item.id)])continue;
     if(!item||typeof item!=='object'||!item.id){if(!rows.some(r=>same(r,item)))rows.push(item);continue;}
     const index=rows.findIndex(r=>r&&r.id===item.id);
     if(index<0){rows.push(item);continue;}
@@ -651,9 +656,11 @@ function mergeDeviceData(remote,local,base){
    const merged=mergeDeviceData(other,value,previous||{});result[key]=merged.data;conflicts+=merged.conflicts;
   }else{result[key]=value;conflicts++;}
  }
+ for(const [tab,ids] of Object.entries(deleted))if(Array.isArray(result[tab]))result[tab]=result[tab].filter(r=>!r||!ids[String(r.id)]);
  return{data:result,conflicts};
 }
 let deviceSyncBusy=false;
+window.addEventListener('gestao-exclusao',()=>{const run=()=>{if(deviceSyncBusy){setTimeout(run,300);return;}void synchronizeDevices(true);};run();});
 async function synchronizeDevices(push=false){
  if(role!=='admin'||deviceSyncBusy||(!push&&window.GESTAO_UNSAVED_FORM))return;
  deviceSyncBusy=true;const button=root.querySelector('#cloud-device-sync');
