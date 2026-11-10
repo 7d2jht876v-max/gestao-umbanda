@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#164b43"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Gestão Umbanda"><title>Gestão Umbanda — atualização 114</title><style>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#164b43"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Gestão Umbanda"><title>Gestão Umbanda — atualização 115</title><style>
 :root{font-family:system-ui,-apple-system,sans-serif;color:#183a34;background:#f4f7f5}*{box-sizing:border-box}body{margin:0}header{background:#164b43;color:white;padding:24px 18px}h1{margin:0;font-size:26px}header p{margin:6px 0 0;opacity:.9}main{max-width:720px;margin:auto;padding:18px}.notice{background:#fff3d7;border:1px solid #e6c575;padding:13px;border-radius:12px;font-size:14px}nav{display:flex;gap:8px;overflow:auto;padding:16px 0}button{border:0;border-radius:10px;padding:12px 15px;background:#16685b;color:white;font-weight:650;cursor:pointer}nav button{white-space:nowrap;background:#e0ebe7;color:#164b43}nav button.active{background:#16685b;color:white}section{background:white;border-radius:14px;padding:18px;box-shadow:0 2px 12px #1232}h2{margin-top:0}label{display:block;font-weight:600;margin:14px 0 5px}input,select{width:100%;padding:12px;border:1px solid #bbc9c4;border-radius:9px;font:inherit}.item{padding:13px 0;border-bottom:1px solid #e2e9e6;overflow-wrap:anywhere}.item small{display:block;color:#61736d;margin-top:4px}.muted{color:#647770}.danger{background:#9e3c3c;margin-top:15px}footer{font-size:12px;text-align:center;color:#667b73;padding:24px}
 @media(max-width:600px){main{padding:12px}section{padding:12px}nav{position:sticky;top:0;background:#f4f7f5;z-index:3}table,thead,tbody,tr,td{display:block}thead{display:none}tr{border:1px solid #dce8e3;border-radius:12px;padding:12px;margin:12px 0}td{padding:6px 0;overflow-wrap:anywhere}td::before{content:attr(data-label);display:block;font-weight:700;color:#43665c;font-size:12px}textarea{width:100%;min-height:90px;border:1px solid #bbc9c4;border-radius:9px;font:inherit;padding:10px}} .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px}.tile{background:#edf5f1;padding:12px;border-radius:12px}.stat{font-size:24px;font-weight:700}.card{margin-bottom:14px}table{width:100%;border-collapse:collapse}td,th{padding:8px;text-align:left;border-bottom:1px solid #e4eae7}textarea{font:inherit}
 /* Visual responsivo: iPhone e computador */
@@ -340,13 +340,24 @@ function bindWorkCurrency(input){input.type='text';input.inputMode='decimal';inp
 function workPaymentRows(payments=[]){
 const box=$('work-payment-list');if(!box)return;box.replaceChildren();
 const add=(payment={})=>{const row=document.createElement('div');row.className='work-payment-row';row.style.cssText='border:1px solid #cbded4;border-radius:10px;padding:12px;margin:10px 0';
-row.innerHTML='<label>Valor pago (R$)<input type="number" min="0.01" step="0.01" inputmode="decimal" data-payment-value></label><label>Data do pagamento<input type="date" data-payment-date></label><button type="button" style="margin-top:10px;background:#9e3c3c">Remover pagamento</button>';
+row.innerHTML='<label>Valor pago (R$)<input type="text" inputmode="decimal" placeholder="R$ 0,00" data-payment-value></label><label>Data do pagamento<input type="date" data-payment-date></label><button type="button" style="margin-top:10px;background:#9e3c3c">Remover pagamento</button>';
 row.querySelector('[data-payment-value]').value=payment.valor||'';row.querySelector('[data-payment-date]').value=payment.data||'';bindWorkCurrency(row.querySelector('[data-payment-value]'));
 row.querySelector('button').onclick=()=>{row.remove();window.GESTAO_UNSAVED_FORM=true;};box.append(row);};
 payments.forEach(add);if(!payments.length)add();$('work-payment-add').onclick=()=>{add();window.GESTAO_UNSAVED_FORM=true;};
 }
 function readWorkPayments(){
-return [...$('work-payment-list').children].map(row=>({valor:row.querySelector('[data-payment-value]').value,data:row.querySelector('[data-payment-date]').value})).filter(p=>p.valor||p.data).map(p=>{if(!p.data||!p.valor||!Number.isFinite(workMoneyNumber(p.valor))||workMoneyNumber(p.valor)<=0)throw Error('Informe um valor pago maior que zero e a data de cada pagamento.');return {...p,valor:workMoneyNumber(p.valor).toFixed(2)};});
+const payments=[];
+for(const [index,row] of [...$('work-payment-list').children].entries()){
+const valueField=row.querySelector('[data-payment-value]'),dateField=row.querySelector('[data-payment-date]');
+const raw=valueField.value.trim(),date=dateField.value.trim(),amount=workMoneyNumber(raw);
+valueField.removeAttribute('aria-invalid');dateField.removeAttribute('aria-invalid');
+if(!raw||Number.isFinite(amount)&&amount===0)continue;
+const fail=(field,message)=>{field.setAttribute('aria-invalid','true');field.style.borderColor='#bd2632';field.scrollIntoView({behavior:'smooth',block:'center'});field.focus({preventScroll:true});field.addEventListener('input',()=>{field.removeAttribute('aria-invalid');field.style.borderColor='';},{once:true});throw Error('Pagamento '+(index+1)+': '+message);};
+if(!Number.isFinite(amount)||amount<0)fail(valueField,'informe um valor válido em reais, como 1.000,00.');
+if(!/^\d{4}-\d{2}-\d{2}$/.test(date))fail(dateField,'informe a data deste pagamento ou remova a linha.');
+payments.push({valor:amount.toFixed(2),data:date});
+}
+return payments;
 }
 
 
@@ -481,7 +492,7 @@ businessMonthDraft={};const monthPanel=document.createElement('div');monthPanel.
 const note=document.createElement('p');note.className='muted';note.style.gridColumn='1/-1';note.textContent='Cadastre o faturamento de cada empresa por mês e ano. Use Editar para atualizar um lançamento salvo.';$('entry').prepend(note);
 }
 if(current==='📝 Trabalhos consulente'){
-const panel=document.createElement('div');panel.style.gridColumn='1/-1';panel.innerHTML='<h3>Pagamento</h3><div id="work-payment-list"></div><button type="button" id="work-payment-add">＋ Adicionar pagamento</button><p class="muted">Use Salvar cadastro ou Salvar alterações para gravar os pagamentos.</p>';
+const panel=document.createElement('div');panel.style.gridColumn='1/-1';panel.innerHTML='<h3>Pagamento</h3><div id="work-payment-list"></div><button type="button" id="work-payment-add">＋ Adicionar pagamento</button><p class="muted">Preencha o valor e a data de cada pagamento. Linhas sem valor são ignoradas. Use Salvar cadastro ou Salvar alterações para gravar.</p>';
 $('entry').querySelector('.actions').before(panel);workPaymentRows();bindWorkCurrency($('f_valorTrabalho'));
 const groups={};
 for(const x of data[current]||[]){const name=String(x.nome||'').trim();if(!name)continue;const key=name.toLocaleLowerCase('pt-BR');(groups[key]??=[]).push(x);}
