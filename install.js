@@ -3,7 +3,7 @@
   const panel = document.createElement('section');
   panel.className = 'card';
   panel.style.marginBottom = '16px';
-  panel.innerHTML = '<h2>Aplicativo no celular e tablet</h2><p id="install-info"></p><div style="display:flex;gap:10px;flex-wrap:wrap"><button type="button" id="install-app">Instalar aplicativo</button><button type="button" id="update-app">Verificar atualização</button></div><p id="app-update-status" role="status" aria-live="polite"></p><small>Atualização 137 • Os dados são salvos neste aparelho. Para transferir cadastros, use o backup. As funções de nuvem precisam de internet.</small>';
+  panel.innerHTML = '<h2>Aplicativo no celular e tablet</h2><p id="install-info"></p><div style="display:flex;gap:10px;flex-wrap:wrap"><button type="button" id="install-app">Instalar aplicativo</button><button type="button" id="update-app">Verificar atualização</button></div><p id="app-update-status" role="status" aria-live="polite"></p><small>Atualização 138 • Os dados são salvos neste aparelho. Para transferir cadastros, use o backup. As funções de nuvem precisam de internet.</small>';
   document.querySelector('main').prepend(panel);
   const info = panel.querySelector('#install-info');
   const install = panel.querySelector('#install-app');
