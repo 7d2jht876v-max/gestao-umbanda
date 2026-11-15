@@ -1109,7 +1109,6 @@ etica:shared('📜 Código de ética do templo',['texto']),
 comunicados:shared('📢 Comunicados',['data','titulo','mensagem','anexos']),
 estudos:shared('🎓 Estudos',['tipo','titulo','link','anexos']),
 videoaulas:shared('🎥 Videoaulas',['titulo','link','descricao']),
-camarinhas:arr('🕯️ Camarinhas').filter(own).map(r=>pick(r,['nomeArquivo','anexos','medium','titulo','orixa','inicio','termino','materiais','orientacoes','observacoes'])),
 escalaMesaExu:arr('📋 Escala de axé para a mesa Exu').filter(own).map(r=>pick(r,['data','medium','titulo','materiais','observacoes'])),
 axesSemana:arr('📅 Axés da semana').filter(own).map(r=>pick(r,['titulo','papelCor','bebida','materiais','comoPreparar'])),
 axes:arr('🌿 Axés').filter(own).map(r=>pick(r,['semana','titulo','papelCor','bebida','flor','materiais','comoPreparar'])),
@@ -1277,7 +1276,6 @@ finally{saveAgenda.disabled=false;newAgenda.disabled=false;}
 recordsPanel('comunicados','📢 Comunicados',[['data','Data'],['titulo','Título'],['mensagem','Mensagem'],['anexos','Arquivos e fotos','attachments']]);
 recordsPanel('estudos','🎓 Estudos',[['tipo','Tipo'],['titulo','Título'],['link','Abrir material','link'],['anexos','Fotos e arquivos','attachments']]);
 recordsPanel('axes','🌿 Axés',[['titulo','Axé'],['papelCor','Papel cor'],['bebida','Bebida'],['materiais','Materiais'],['comoPreparar','Como preparar']]);
-recordsPanel('camarinhas','🕯️ Camarinhas',[['nomeArquivo','Nome do arquivo'],['anexos','Arquivos e fotos','attachments'],['medium','Médium'],['titulo','Nome da camarinha'],['orixa','Orixá'],['inicio','Data de início'],['termino','Data de término'],['materiais','Materiais'],['orientacoes','Orientações'],['observacoes','Observações']]);
 recordsPanel('escalaMesaExu','📋 Escala de axé para a mesa Exu',[['data','Data'],['medium','Médium responsável'],['titulo','Nome do axé'],['materiais','Materiais'],['observacoes','Observações']]);
 recordsPanel('axesSemana','📅 Axés da semana',[['titulo','Axé'],['papelCor','Papel cor'],['bebida','Bebida'],['materiais','Materiais'],['comoPreparar','Como preparar']]);
 const birthdays=recordsPanel('aniversariantes','🎂 Aniversariantes do templo',[['nome','Nome'],['diaMes','Aniversário']]);
