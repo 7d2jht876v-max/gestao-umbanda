@@ -209,6 +209,7 @@ const configs={
 '🗓️ Mensalidades':[['medium','Médium','medium'],['mes','Mês de referência','month'],['valor','Valor (R$)','number'],['status','Situação','payment']],
 '🎥 Videoaulas':[['titulo','Título'],['link','Link da aula','url'],['descricao','Descrição']],
 '🌿 Axés':[['medium','Médium','medium'],['titulo','Nome do axé'],['papelCor','1 - Papel cor'],['bebida','2 - Bebida'],['materiais','3 - Material','textarea'],['comoPreparar','Como preparar','textarea']],
+'🕯️ Camarinhas':[['medium','Médium','medium'],['titulo','Nome da camarinha'],['orixa','Orixá'],['inicio','Data de início','date'],['termino','Data de término','date'],['materiais','Materiais','textarea'],['orientacoes','Orientações','textarea'],['observacoes','Observações','textarea']],
 '📋 Escala de axé para a mesa Exu':[['data','Data','date'],['medium','Médium responsável','medium'],['titulo','Nome do axé'],['materiais','Materiais','textarea'],['observacoes','Observações','textarea']],
 '📅 Axés da semana':[['medium','Médium','medium'],['titulo','Nome do axé'],['papelCor','1 - Papel cor'],['bebida','2 - Bebida'],['materiais','3 - Material','textarea'],['comoPreparar','Como preparar','textarea']],
 '🎂 Aniversariantes do Templo':[['nome','Nome do aniversariante'],['dataNascimento','Data de nascimento','date'],['observacoes','Observações']],
@@ -1107,6 +1108,7 @@ etica:shared('📜 Código de ética do templo',['texto']),
 comunicados:shared('📢 Comunicados',['data','titulo','mensagem','anexos']),
 estudos:shared('🎓 Estudos',['tipo','titulo','link','anexos']),
 videoaulas:shared('🎥 Videoaulas',['titulo','link','descricao']),
+camarinhas:arr('🕯️ Camarinhas').filter(own).map(r=>pick(r,['medium','titulo','orixa','inicio','termino','materiais','orientacoes','observacoes'])),
 escalaMesaExu:arr('📋 Escala de axé para a mesa Exu').filter(own).map(r=>pick(r,['data','medium','titulo','materiais','observacoes'])),
 axesSemana:arr('📅 Axés da semana').filter(own).map(r=>pick(r,['titulo','papelCor','bebida','materiais','comoPreparar'])),
 axes:arr('🌿 Axés').filter(own).map(r=>pick(r,['semana','titulo','papelCor','bebida','flor','materiais','comoPreparar'])),
@@ -1274,6 +1276,7 @@ finally{saveAgenda.disabled=false;newAgenda.disabled=false;}
 recordsPanel('comunicados','📢 Comunicados',[['data','Data'],['titulo','Título'],['mensagem','Mensagem'],['anexos','Arquivos e fotos','attachments']]);
 recordsPanel('estudos','🎓 Estudos',[['tipo','Tipo'],['titulo','Título'],['link','Abrir material','link'],['anexos','Fotos e arquivos','attachments']]);
 recordsPanel('axes','🌿 Axés',[['titulo','Axé'],['papelCor','Papel cor'],['bebida','Bebida'],['materiais','Materiais'],['comoPreparar','Como preparar']]);
+recordsPanel('camarinhas','🕯️ Camarinhas',[['medium','Médium'],['titulo','Nome da camarinha'],['orixa','Orixá'],['inicio','Data de início'],['termino','Data de término'],['materiais','Materiais'],['orientacoes','Orientações'],['observacoes','Observações']]);
 recordsPanel('escalaMesaExu','📋 Escala de axé para a mesa Exu',[['data','Data'],['medium','Médium responsável'],['titulo','Nome do axé'],['materiais','Materiais'],['observacoes','Observações']]);
 recordsPanel('axesSemana','📅 Axés da semana',[['titulo','Axé'],['papelCor','Papel cor'],['bebida','Bebida'],['materiais','Materiais'],['comoPreparar','Como preparar']]);
 const birthdays=recordsPanel('aniversariantes','🎂 Aniversariantes do templo',[['nome','Nome'],['diaMes','Aniversário']]);
