@@ -209,6 +209,7 @@ const configs={
 '🗓️ Mensalidades':[['medium','Médium','medium'],['mes','Mês de referência','month'],['valor','Valor (R$)','number'],['status','Situação','payment']],
 '🎥 Videoaulas':[['titulo','Título'],['link','Link da aula','url'],['descricao','Descrição']],
 '🌿 Axés':[['medium','Médium','medium'],['titulo','Nome do axé'],['papelCor','1 - Papel cor'],['bebida','2 - Bebida'],['materiais','3 - Material','textarea'],['comoPreparar','Como preparar','textarea']],
+'📋 Escala de axé para a mesa Exu':[['data','Data','date'],['medium','Médium responsável','medium'],['titulo','Nome do axé'],['materiais','Materiais','textarea'],['observacoes','Observações','textarea']],
 '📅 Axés da semana':[['medium','Médium','medium'],['titulo','Nome do axé'],['papelCor','1 - Papel cor'],['bebida','2 - Bebida'],['materiais','3 - Material','textarea'],['comoPreparar','Como preparar','textarea']],
 '🎂 Aniversariantes do Templo':[['nome','Nome do aniversariante'],['dataNascimento','Data de nascimento','date'],['observacoes','Observações']],
 '📖 Características dos Orixás':[['caracteristica1','Elegbará — características','textarea'],['caracteristica2','Ogum — características','textarea'],['caracteristica3','Iansã — características','textarea'],['caracteristica4','Xangô — características','textarea'],['caracteristica5','Obaluaê — características','textarea'],['caracteristica6','Oxóssi — características','textarea'],['caracteristica7','Ossaim — características','textarea'],['caracteristica8','Nanã — características','textarea'],['caracteristica9','Obá — características','textarea'],['caracteristica10','Ewá — características','textarea'],['caracteristica11','Oxum — características','textarea'],['caracteristica12','Yemanjá — características','textarea'],['caracteristica13','Oxumaré — características','textarea'],['caracteristica14','Logun Edé — características','textarea'],['caracteristica15','Oxalá — características','textarea']]
@@ -1106,6 +1107,7 @@ etica:shared('📜 Código de ética do templo',['texto']),
 comunicados:shared('📢 Comunicados',['data','titulo','mensagem','anexos']),
 estudos:shared('🎓 Estudos',['tipo','titulo','link','anexos']),
 videoaulas:shared('🎥 Videoaulas',['titulo','link','descricao']),
+escalaMesaExu:arr('📋 Escala de axé para a mesa Exu').filter(own).map(r=>pick(r,['data','medium','titulo','materiais','observacoes'])),
 axesSemana:arr('📅 Axés da semana').filter(own).map(r=>pick(r,['titulo','papelCor','bebida','materiais','comoPreparar'])),
 axes:arr('🌿 Axés').filter(own).map(r=>pick(r,['semana','titulo','papelCor','bebida','flor','materiais','comoPreparar'])),
 aniversariantes:arr('🎂 Aniversariantes do Templo').map(r=>({nome:r.nome||'',diaMes:/^\d{4}-\d{2}-\d{2}$/.test(String(r.dataNascimento||''))?r.dataNascimento.slice(8,10)+'/'+r.dataNascimento.slice(5,7):''})),
@@ -1272,6 +1274,7 @@ finally{saveAgenda.disabled=false;newAgenda.disabled=false;}
 recordsPanel('comunicados','📢 Comunicados',[['data','Data'],['titulo','Título'],['mensagem','Mensagem'],['anexos','Arquivos e fotos','attachments']]);
 recordsPanel('estudos','🎓 Estudos',[['tipo','Tipo'],['titulo','Título'],['link','Abrir material','link'],['anexos','Fotos e arquivos','attachments']]);
 recordsPanel('axes','🌿 Axés',[['titulo','Axé'],['papelCor','Papel cor'],['bebida','Bebida'],['materiais','Materiais'],['comoPreparar','Como preparar']]);
+recordsPanel('escalaMesaExu','📋 Escala de axé para a mesa Exu',[['data','Data'],['medium','Médium responsável'],['titulo','Nome do axé'],['materiais','Materiais'],['observacoes','Observações']]);
 recordsPanel('axesSemana','📅 Axés da semana',[['titulo','Axé'],['papelCor','Papel cor'],['bebida','Bebida'],['materiais','Materiais'],['comoPreparar','Como preparar']]);
 const birthdays=recordsPanel('aniversariantes','🎂 Aniversariantes do templo',[['nome','Nome'],['diaMes','Aniversário']]);
 const birthdayNote=document.createElement('p');birthdayNote.className='muted';birthdayNote.textContent='Aniversários do templo: nome, dia e mês.';birthdays.append(birthdayNote);
