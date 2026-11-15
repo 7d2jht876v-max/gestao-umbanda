@@ -1,7 +1,7 @@
 /* Only public application assets are cached. User records remain in their existing storage. */
-const CACHE = 'gestao-shell-207';
+const CACHE = 'gestao-shell-212';
 const ROOT = new URL('./', self.location.href);
-const ASSETS = ['index.html','install.js','manifest.webmanifest','icons/icon-192.png','icons/icon-512.png','supabase-config.js','baralho-cigano.html'];
+const ASSETS = ['index.html','install.js','manifest.webmanifest','icons/icon-192.png','icons/icon-512.png','icons/apple-touch-icon.png','icons/icon-1024.png','supabase-config.js','baralho-cigano.html'];
 const ALLOWED = new Set(ASSETS.map(path => new URL(path, ROOT).pathname));
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS.map(p => new URL(p, ROOT).href)))));
 self.addEventListener('message', event => { if(event.data === 'ACTIVATE_UPDATE') self.skipWaiting(); });
