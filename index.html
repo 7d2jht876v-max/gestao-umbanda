@@ -668,7 +668,32 @@ folderNames.forEach((name,index)=>{
  buttons.append(photoButton,fileButton);
  const status=document.createElement('p');status.setAttribute('role','status');
  const list=document.createElement('div');
- const draw=()=>{const rows=(data[sectionKey]||[]).filter(r=>r.pasta===folder);list.innerHTML=rows.length?rows.map(r=>debtAttachmentLinks(r.anexos)).join(''):'<p class="muted">Nenhum anexo nesta pasta.</p>';};
+ const draw=()=>{
+ const rows=(data[sectionKey]||[]).filter(r=>r.pasta===folder);
+ list.replaceChildren();
+ if(!rows.length){list.innerHTML='<p class="muted">Nenhum anexo nesta pasta.</p>';return;}
+ for(const row of rows)for(const [index,attachment] of (Array.isArray(row.anexos)?row.anexos:[]).entries()){
+  const card=document.createElement('div');card.innerHTML=debtAttachmentLinks([attachment]);
+  const remove=document.createElement('button');remove.type='button';remove.textContent='Excluir';remove.style.cssText='background:#9e3c3c;margin-bottom:15px';remove.setAttribute('aria-label','Excluir '+(attachment.nome||'anexo'));
+  remove.onclick=async()=>{
+   if(!confirm('Excluir "'+(attachment.nome||'este anexo')+'"? A exclusão será sincronizada com os outros aparelhos.'))return;
+   remove.disabled=true;
+   try{
+    const next=JSON.parse(JSON.stringify(data)),record=(next[sectionKey]||[]).find(r=>String(r.id)===String(row.id));
+    if(!record)throw Error('O anexo já foi alterado. Atualize esta pasta.');
+    const remaining=(record.anexos||[]).filter((_,i)=>i!==index),timestamp=new Date().toISOString();
+    next._deleted??={};next._deleted[sectionKey]??={};next._deleted[sectionKey][String(record.id)]=timestamp;
+    next[sectionKey]=next[sectionKey].filter(r=>String(r.id)!==String(record.id));
+    if(remaining.length)next[sectionKey].push({...record,id:crypto.randomUUID(),anexos:remaining,updatedAt:timestamp});
+    localStorage.setItem(KEY,JSON.stringify(next));data=next;
+    await window.GESTAO_STORAGE_FLUSH();
+    draw();status.textContent='✓ Anexo excluído. Os demais arquivos foram mantidos. Sincronize para atualizar os outros aparelhos.';
+    window.dispatchEvent(new Event('gestao-exclusao'));
+   }catch(error){status.textContent='Não foi possível confirmar a exclusão: '+error.message;remove.disabled=false;}
+  };
+  card.append(remove);list.append(card);
+ }
+};
  const attach=async event=>{
   const input=event.target;let files=[...input.files];if(!files.length)return;
   photoButton.disabled=fileButton.disabled=true;window.GESTAO_UNSAVED_FORM=true;status.textContent='Preparando anexos…';
