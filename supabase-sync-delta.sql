@@ -121,3 +121,37 @@ begin
  return jsonb_build_object('versao',v,'numero',numero,'partes',greatest(1,ceil(octet_length(raw)/196608.0)::integer),'bytes',octet_length(raw),'payload',encode(substring(raw from numero*196608+1 for 196608),'base64'),'indice',case when numero=0 then idx else null end);
 end $$;
 notify pgrst,'reload schema';
+
+-- 216.5: linear merge and bounded contention.
+create or replace function public.gestao_aplicar_delta(doc jsonb,patch jsonb) returns jsonb
+language plpgsql immutable security invoker set search_path='' as $$
+declare result jsonb; k text; items jsonb; existing jsonb; combined jsonb; dead jsonb;
+begin
+ if jsonb_typeof(patch->'sets') is distinct from 'object' or jsonb_typeof(patch->'rows') is distinct from 'object' then raise exception 'Alterações inválidas';end if;
+ result=doc||(patch->'sets');
+ for k,items in select * from jsonb_each(patch->'rows') loop
+  if jsonb_typeof(items)<>'array' or exists(select 1 from jsonb_array_elements(items) r where coalesce(r->>'id','')='') then raise exception 'Registros inválidos';end if;
+  existing=case when jsonb_typeof(result->k)='array' then result->k else '[]'::jsonb end;
+  select coalesce(jsonb_agg(r order by ord),'[]') into combined from (
+   select coalesce(p.r,e.r) r,e.ord from jsonb_array_elements(existing) with ordinality e(r,ord)
+   left join jsonb_array_elements(items) p(r) on p.r->>'id'=e.r->>'id'
+   union all
+   select p.r,1000000000+p.ord from jsonb_array_elements(items) with ordinality p(r,ord)
+   where not exists(select 1 from jsonb_array_elements(existing) e(r) where e.r->>'id'=p.r->>'id')
+  ) merged;
+  result=result||jsonb_build_object(k,combined);
+ end loop;
+ for k,dead in select * from jsonb_each(coalesce(result->'_deleted','{}')) loop
+  if jsonb_typeof(result->k)='array' and jsonb_typeof(dead)='object' then
+   existing=result->k;
+   if exists(select 1 from jsonb_array_elements(existing) r where dead ? (r->>'id')) then
+    select coalesce(jsonb_agg(r),'[]') into combined from jsonb_array_elements(existing) r where not dead ? (r->>'id');
+    result=result||jsonb_build_object(k,combined);
+   end if;
+  end if;
+ end loop;
+ return result;
+end $$;
+-- Fail fast on contention; clients retain and retry pending transfers.
+alter function public.concluir_gestao_delta(uuid) set lock_timeout='2s';
+notify pgrst,'reload schema';
