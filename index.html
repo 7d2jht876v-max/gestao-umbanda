@@ -210,6 +210,7 @@ const configs={
 '🎥 Videoaulas':[['titulo','Título'],['link','Link da aula','url'],['descricao','Descrição']],
 '🌿 Axés':[['medium','Médium','medium'],['titulo','Nome do axé'],['papelCor','1 - Papel cor'],['bebida','2 - Bebida'],['materiais','3 - Material','textarea'],['comoPreparar','Como preparar','textarea']],
 '🕯️ Camarinhas':[['medium','Médium','medium'],['nomeArquivo','Nome do arquivo'],['titulo','Nome da camarinha'],['orixa','Orixá'],['inicio','Data de início','date'],['termino','Data de término','date'],['materiais','Materiais','textarea'],['orientacoes','Orientações','textarea'],['observacoes','Observações','textarea']],
+"📂 Exercícios das camarinhas":[],
 '📋 Escala de axé para a mesa Exu':[['data','Data','date'],['medium','Médiuns responsáveis','multimedium'],['titulo','Nome do axé'],['materiais','Materiais','textarea'],['observacoes','Observações','textarea']],
 '📅 Axés da semana':[['medium','Médium','medium'],['titulo','Nome do axé'],['papelCor','1 - Papel cor'],['bebida','2 - Bebida'],['materiais','3 - Material','textarea'],['comoPreparar','Como preparar','textarea']],
 '🎂 Aniversariantes do Templo':[['nome','Nome do aniversariante'],['dataNascimento','Data de nascimento','date'],['observacoes','Observações']],
@@ -648,6 +649,51 @@ const existingGameHost=document.getElementById('baralho-integrado');
 if(existingGameHost)existingGameHost.hidden=current!=='🔮 Jogo de tarô cigano e Búzios';
 document.getElementById('ficha-radiestesia').hidden=current!=='📋 Prontuário consulente radiestesia';
 if(current==='📋 Prontuário consulente radiestesia'){$('view').replaceChildren();document.getElementById('ficha-radiestesia').scrollIntoView({behavior:'smooth',block:'start'});return;}
+
+if(current==="📂 Exercícios das camarinhas"){
+const sectionKey=current;
+const folderNames=["1 - Camarinha","2 - Camarinha","3 - Camarinha","4 - Camarinha","5 - Camarinha","6 - Camarinha 3 orixás","7 - Camarinha 3 orixás","8 - Camarinha 3 orixás","9 - Camarinha orixá do corpo + Ifá + consagração","10 - Ogam"];
+$('view').innerHTML='<div class="card"><h2>📂 Exercícios das camarinhas</h2><p class="muted">Uso exclusivo do administrador. Abra uma pasta para incluir fotos e arquivos. Os anexos são gravados automaticamente nesta pasta; use a sincronização do aplicativo para enviar à nuvem.</p><p class="muted">Limite de 2 MB por arquivo e 3 MB por envio. Fotos grandes são reduzidas automaticamente.</p><div id="camarinha-exercises-folders"></div></div>';
+const host=$('camarinha-exercises-folders');
+folderNames.forEach((name,index)=>{
+ const folder=String(index+1),box=document.createElement('details');box.className='card';
+ const summary=document.createElement('summary');summary.textContent='📁 '+name;summary.style.cssText='font-weight:750;cursor:pointer';
+ const photo=document.createElement('input');photo.type='file';photo.accept='image/*';photo.multiple=true;photo.hidden=true;photo.setAttribute('aria-label','Fotos — '+name);
+ const file=document.createElement('input');file.type='file';file.multiple=true;file.hidden=true;file.setAttribute('aria-label','Arquivos — '+name);
+ const buttons=document.createElement('div');buttons.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin:15px 0';
+ const photoButton=document.createElement('button');photoButton.type='button';photoButton.textContent='📷 Anexar foto';photoButton.onclick=()=>photo.click();
+ const fileButton=document.createElement('button');fileButton.type='button';fileButton.textContent='📎 Anexar arquivo';fileButton.onclick=()=>file.click();
+ buttons.append(photoButton,fileButton);
+ const status=document.createElement('p');status.setAttribute('role','status');
+ const list=document.createElement('div');
+ const draw=()=>{const rows=(data[sectionKey]||[]).filter(r=>r.pasta===folder);list.innerHTML=rows.length?rows.map(r=>debtAttachmentLinks(r.anexos)).join(''):'<p class="muted">Nenhum anexo nesta pasta.</p>';};
+ const attach=async event=>{
+  const input=event.target;let files=[...input.files];if(!files.length)return;
+  photoButton.disabled=fileButton.disabled=true;window.GESTAO_UNSAVED_FORM=true;status.textContent='Preparando anexos…';
+  let before=null,addedIds=[];
+  try{
+   files=await Promise.all(files.map(prepareDebtPhoto));
+   if(files.some(f=>f.size>2*1024*1024))throw Error('Escolha arquivos de até 2 MB.');
+   if(files.reduce((total,f)=>total+f.size,0)>3*1024*1024)throw Error('Envie até 3 MB por vez.');
+   const attachments=[];
+   for(const f of files){
+    const raw=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(Error('Não foi possível ler '+f.name));reader.readAsDataURL(f);});
+    attachments.push({nome:f.name,tamanho:f.size,url:'data:'+(f.type&&/^[a-z0-9.+\/-]+$/i.test(f.type)?f.type:'application/octet-stream')+';base64,'+String(raw).split(',')[1]});
+   }
+   const row={id:crypto.randomUUID(),pasta:folder,titulo:name,anexos:attachments,updatedAt:new Date().toISOString()};
+   before=(data[sectionKey]||[]).slice();addedIds=[row.id];
+   data[sectionKey]=before.concat(row);save();await verifySavedRow(sectionKey,row);
+   draw();status.textContent='✓ Fotos e arquivos gravados e conferidos nesta pasta. Sincronize para enviar à nuvem.';
+  }catch(error){
+   if(before){data[sectionKey]=(data[sectionKey]||[]).filter(r=>!addedIds.includes(r.id));try{save();await window.GESTAO_STORAGE_FLUSH();}catch{}}
+   status.textContent='Não foi possível anexar: '+error.message;
+  }finally{input.value='';photoButton.disabled=fileButton.disabled=false;window.GESTAO_UNSAVED_FORM=false;}
+ };
+ photo.onchange=attach;file.onchange=attach;box.append(summary,buttons,photo,file,status,list);host.append(box);draw();
+});
+return;
+}
+
 // Jogo original incorporado; os registros da aba continuam abaixo.
 let gameHost=document.getElementById('baralho-integrado');
 if(!gameHost){gameHost=document.createElement('div');gameHost.id='baralho-integrado';gameHost.className='card';gameHost.style.scrollMarginTop='85px';gameHost.innerHTML='<h2>Baralho Cigano — Templo Xangô</h2><iframe title="Baralho Cigano, Sim ou Não e mesa de búzios" style="display:block;width:100%;height:85dvh;min-height:600px;border:1px solid #d8e7e0;border-radius:12px;background:#fff" loading="lazy"></iframe>';$('view').before(gameHost);}
