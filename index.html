@@ -1362,6 +1362,44 @@ msg('Conectado: '+user.email+' • Acesso individual para consulta dos seus dado
 }catch(error){if(holder.isConnected)fail('Não foi possível atualizar seus dados: '+errorText(error));}
 }
 let mediumPublishBusy=false;
+
+async function publicationAdminToken(){
+ let {data:sessionData,error}=await client.auth.getSession();
+ if(error)throw error;
+ let session=sessionData?.session;
+ if(!session)throw Error('Sua sessão expirou. Saia e entre novamente como administrador.');
+ if(!session.expires_at||session.expires_at*1000<Date.now()+120000){
+  const refreshed=await client.auth.refreshSession();
+  if(refreshed.error||!refreshed.data?.session)throw Error('Não foi possível renovar sua sessão. Saia e entre novamente.');
+  session=refreshed.data.session;
+ }
+ const verified=await client.auth.getUser(session.access_token);
+ if(verified.error||!verified.data?.user)throw Error('Sessão inválida. Saia e entre novamente como administrador.');
+ const response=await fetch(cfg.url+'/rest/v1/perfis?select=perfil&id=eq.'+encodeURIComponent(verified.data.user.id),{
+  headers:{apikey:cfg.publishableKey,Authorization:'Bearer '+session.access_token},cache:'no-store'
+ });
+ const profiles=await response.json();
+ if(!response.ok||!Array.isArray(profiles)||profiles[0]?.perfil!=='admin')throw Error('A publicação exige uma sessão de administrador válida.');
+ return session.access_token;
+}
+async function publishAuthenticatedMedium(item,signal){
+ let token=await publicationAdminToken();
+ const send=()=>fetch(cfg.url+'/rest/v1/portal_mediuns?on_conflict=email',{
+  method:'POST',headers:{apikey:cfg.publishableKey,Authorization:'Bearer '+token,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},
+  body:JSON.stringify([item]),signal
+ });
+ let response=await send();
+ if(response.status===401){
+  const refreshed=await client.auth.refreshSession();
+  if(refreshed.error)throw refreshed.error;
+  token=await publicationAdminToken();response=await send();
+ }
+ if(!response.ok){
+  let detail={};try{detail=await response.json();}catch{}
+  throw Error(detail.message||'Não foi possível publicar (HTTP '+response.status+').');
+ }
+}
+
 async function publishMediumData(){
 if(role!=='admin'||mediumPublishBusy)return;
 let source;try{source=JSON.parse(localStorage.getItem(localKey)||'{}')}catch{msg('Não foi possível ler os cadastros locais.');return}
@@ -1400,8 +1438,7 @@ msg('Publicando dados individuais: '+(completed+1)+' de '+items.length+'… Agua
 const controller=new AbortController();
 const timer=setTimeout(()=>controller.abort(),60000);
 try{
-const {error}=await client.from('portal_mediuns').upsert([item],{onConflict:'email'}).abortSignal(controller.signal);
-if(error)throw error;
+await publishAuthenticatedMedium(item,controller.signal);
 completed++;
 }finally{clearTimeout(timer)}
 }
