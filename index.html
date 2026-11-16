@@ -252,7 +252,7 @@ let guardianMediumFilter='';
 
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const save=()=>{localStorage.setItem(KEY,JSON.stringify(data));window.dispatchEvent(new Event('gestao-dados-salvos'));};
+const save=()=>{localStorage.setItem(KEY,JSON.stringify(data));localStorage.setItem(KEY+'-auto-sync-pending',crypto.randomUUID());window.dispatchEvent(new Event('gestao-dados-salvos'));};
 
 function birthdayMonthlySummary(){const monthNamesBR=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];const month=new Date().getMonth();const rows=(data['🎂 Aniversariantes do Templo']||[]).filter(p=>{const d=String(p.dataNascimento||'').split('-');return d.length===3&&Number(d[1])===month+1}).sort((a,b)=>Number(String(a.dataNascimento).slice(8))-Number(String(b.dataNascimento).slice(8)));return '<div class="card"><h2>🎂 Aniversariantes do mês — '+monthNamesBR[month]+'</h2>'+(rows.length?rows.map(p=>'<div class="dash-line"><strong>'+esc(p.nome||'Sem nome')+'</strong><span>'+esc(String(p.dataNascimento).slice(8,10)+'/'+String(p.dataNascimento).slice(5,7))+'</span></div>').join(''):'<p class="muted">Nenhum aniversariante cadastrado neste mês.</p>')+'</div>'}
 function birthdayNotice(){
@@ -655,7 +655,7 @@ if(current==='📋 Prontuário consulente radiestesia'){$('view').replaceChildre
 if(current==="📂 Exercícios das camarinhas"){
 const sectionKey=current;
 const folderNames=["1 - Camarinha","2 - Camarinha","3 - Camarinha","4 - Camarinha","5 - Camarinha","6 - Camarinha 3 orixás","7 - Camarinha 3 orixás","8 - Camarinha 3 orixás","9 - Camarinha orixá do corpo + Ifá + consagração","10 - Ogam"];
-$('view').innerHTML='<div class="card"><h2>📂 Exercícios das camarinhas</h2><p class="muted">Uso exclusivo do administrador. Abra uma pasta para incluir fotos e arquivos. Os anexos são gravados automaticamente nesta pasta; use a sincronização do aplicativo para enviar à nuvem.</p><p class="muted">Limite de 2 MB por arquivo e 3 MB por envio. Fotos grandes são reduzidas automaticamente.</p><div id="camarinha-exercises-folders"></div></div>';
+$('view').innerHTML='<div class="card"><h2>📂 Exercícios das camarinhas</h2><p class="muted">Uso exclusivo do administrador. Abra uma pasta para incluir fotos e arquivos. Os anexos são salvos neste aparelho e enviados automaticamente à nuvem. Se a conexão falhar, o envio será tentado novamente. Confira o resultado no Acesso seguro.</p><p class="muted">Limite de 2 MB por arquivo e 3 MB por envio. Fotos grandes são reduzidas automaticamente.</p><div id="camarinha-exercises-folders"></div></div>';
 const host=$('camarinha-exercises-folders');
 folderNames.forEach((name,index)=>{
  const folder=String(index+1),box=document.createElement('details');box.className='card';
@@ -710,7 +710,7 @@ folderNames.forEach((name,index)=>{
    const row={id:crypto.randomUUID(),pasta:folder,titulo:name,anexos:attachments,updatedAt:new Date().toISOString()};
    before=(data[sectionKey]||[]).slice();addedIds=[row.id];
    data[sectionKey]=before.concat(row);save();await verifySavedRow(sectionKey,row);
-   draw();status.textContent='✓ Fotos e arquivos gravados e conferidos nesta pasta. Sincronize para enviar à nuvem.';
+   draw();status.textContent='✓ Anexos salvos neste aparelho. Envio automático à nuvem pendente; confira o resultado no Acesso seguro.';
   }catch(error){
    if(before){data[sectionKey]=(data[sectionKey]||[]).filter(r=>!addedIds.includes(r.id));try{save();await window.GESTAO_STORAGE_FLUSH();}catch{}}
    status.textContent='Não foi possível anexar: '+error.message;
@@ -1525,7 +1525,7 @@ let deviceSyncBusy=false;
 window.addEventListener('gestao-exclusao',()=>{const run=()=>{if(deviceSyncBusy){setTimeout(run,300);return;}void synchronizeDevices(true);};run();});
 async function synchronizeDevices(push=false){
  if(role!=='admin'||deviceSyncBusy||(!push&&window.GESTAO_UNSAVED_FORM))return;
- deviceSyncBusy=true;const button=root.querySelector('#cloud-device-sync');
+ deviceSyncBusy=true;const pendingAtStart=localStorage.getItem(localKey+'-auto-sync-pending');const button=root.querySelector('#cloud-device-sync');
  if(button)button.disabled=true;
  const controller=new AbortController();
  const bounded=(operation,label,ms=45000)=>new Promise((resolve,reject)=>{const timer=setTimeout(()=>{controller.abort();reject(Error(label+' demorou demais. Confira a internet e tente novamente.'));},ms);Promise.resolve(operation).then(value=>{clearTimeout(timer);resolve(value);},error=>{clearTimeout(timer);reject(error);});});
@@ -1560,6 +1560,7 @@ async function synchronizeDevices(push=false){
    const {data:writtenVersion,error:writeError}=await bounded(client.rpc('sincronizar_gestao',{conteudo_novo:merged.data,versao_esperada:row?.atualizado_em||null}).abortSignal(controller.signal),'O envio dos dados',65000);
    if(writeError)throw writeError;
    if(writtenVersion&&row)row.atualizado_em=writtenVersion;
+   if(pendingAtStart&&localStorage.getItem(localKey+'-auto-sync-pending')===pendingAtStart)localStorage.removeItem(localKey+'-auto-sync-pending');
   }
   const changed=syncCanonical(local)!==syncCanonical(merged.data);
   if(changed){
@@ -1582,7 +1583,9 @@ async function synchronizeDevices(push=false){
  }catch(error){if(push)msg('Não foi possível concluir: '+errorText(error)+'. Os dados deste aparelho foram mantidos.');}
  finally{deviceSyncBusy=false;if(button)button.disabled=false;}
 }
-setInterval(()=>{if(!document.hidden)void synchronizeDevices(false)},15000);
+function resumeDeviceSync(){if(!document.hidden&&!window.GESTAO_UNSAVED_FORM)void synchronizeDevices(!!localStorage.getItem(localKey+'-auto-sync-pending'));}
+setInterval(resumeDeviceSync,15000);
+document.addEventListener('visibilitychange',resumeDeviceSync);
 let autoSyncTimer;
 window.addEventListener('gestao-dados-salvos',()=>{clearTimeout(autoSyncTimer);autoSyncTimer=setTimeout(()=>{if(deviceSyncBusy){window.dispatchEvent(new Event('gestao-dados-salvos'));return;}void synchronizeDevices(true);},1800);});
 let autoSaveTimer;
@@ -1596,7 +1599,7 @@ function scheduleAutoSave(event){
  form.dataset.autosave='true';form.requestSubmit();
  },1500);
 }
-window.addEventListener('online',()=>void synchronizeDevices(false));
+window.addEventListener('online',resumeDeviceSync);
 
 async function recoverFoundData(){
  if(role!=='admin')return;
