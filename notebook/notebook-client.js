@@ -27,7 +27,10 @@ class Rpc{
  then(resolve,reject){return notebookAPI('/api/rpc',this.body,this.signal).then(resolve,reject);}
 }
 const auth={
- async getSession(){return notebookAPI('/api/session');},
+ async getSession(){
+  const result=await notebookAPI('/api/session');
+  return {data:{session:result?.data?.session||null},error:result?.error||null};
+ },
  async getUser(){const result=await this.getSession();return {data:{user:result.data?.session?.user||null},error:result.error};},
  async signInWithPassword(args){return notebookAPI('/api/login',args);},
  async signOut(){return notebookAPI('/api/logout',{});},
