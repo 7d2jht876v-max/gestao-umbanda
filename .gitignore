@@ -6,3 +6,9 @@ ios/
 *.keystore
 *.p12
 *.mobileprovision
+
+# Notebook server: private database, certificate keys, backups and environments.
+notebook/dados/
+notebook/.venv/
+notebook/__pycache__/
+tests/__pycache__/
