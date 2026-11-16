@@ -1,5 +1,5 @@
 /* Only public application assets are cached. User records remain in their existing storage. */
-const CACHE = 'gestao-shell-215';
+const CACHE = 'gestao-shell-216';
 const ROOT = new URL('./', self.location.href);
 const ASSETS = ['index.html','install.js','manifest.webmanifest','icons/icon-192.png','icons/icon-512.png','icons/apple-touch-icon.png','icons/icon-1024.png','supabase-config.js','baralho-cigano.html'];
 const ALLOWED = new Set(ASSETS.map(path => new URL(path, ROOT).pathname));
