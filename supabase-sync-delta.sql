@@ -155,3 +155,6 @@ end $$;
 -- Fail fast on contention; clients retain and retry pending transfers.
 alter function public.concluir_gestao_delta(uuid) set lock_timeout='2s';
 notify pgrst,'reload schema';
+-- Bound temporary index spills for large photo attachments.
+alter function public.gestao_cache_indice() set work_mem='64MB';
+alter function public.gestao_delta_indice(jsonb) set work_mem='64MB';
