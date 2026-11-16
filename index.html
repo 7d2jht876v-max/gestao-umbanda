@@ -1528,7 +1528,7 @@ async function synchronizeDevices(push=false){
  deviceSyncBusy=true;const pendingAtStart=localStorage.getItem(localKey+'-auto-sync-pending');const button=root.querySelector('#cloud-device-sync');
  if(button)button.disabled=true;
  const controller=new AbortController();
- const bounded=(operation,label,ms=45000)=>new Promise((resolve,reject)=>{const timer=setTimeout(()=>{controller.abort();reject(Error(label+' demorou demais. Confira a internet e tente novamente.'));},ms);Promise.resolve(operation).then(value=>{clearTimeout(timer);resolve(value);},error=>{clearTimeout(timer);reject(error);});});
+ const bounded=(operation,label,ms=65000)=>new Promise((resolve,reject)=>{const timer=setTimeout(()=>{controller.abort();reject(Error(label+' demorou demais. Confira a internet e tente novamente.'));},ms);Promise.resolve(operation).then(value=>{clearTimeout(timer);resolve(value);},error=>{clearTimeout(timer);reject(error);});});
  if(push)msg('Preparando sincronização…');
  try{
   if(push&&window.GESTAO_UNSAVED_FORM){document.getElementById('entry')?.requestSubmit();if(window.GESTAO_UNSAVED_FORM)throw Error('Preencha os campos obrigatórios e salve o cadastro antes de sincronizar.');}
@@ -1552,7 +1552,7 @@ async function synchronizeDevices(push=false){
   }
   if(Object.keys(aux).length)local._sync_financial_status=aux;
   const merged=mergeDeviceData(remote,local,base);
-  if(push){
+  if(push&&syncCanonical(merged.data)!==syncCanonical(remote)){
    msg('Atualizando e sincronizando notebook e iPhone…');
    localStorage.setItem(localKey+'-before-device-sync',JSON.stringify({records:local,remote,createdAt:new Date().toISOString()}));
    if(window.GESTAO_STORAGE_FLUSH)await bounded(window.GESTAO_STORAGE_FLUSH(),'A gravação do backup');
@@ -1562,6 +1562,7 @@ async function synchronizeDevices(push=false){
    if(writtenVersion&&row)row.atualizado_em=writtenVersion;
    if(pendingAtStart&&localStorage.getItem(localKey+'-auto-sync-pending')===pendingAtStart)localStorage.removeItem(localKey+'-auto-sync-pending');
   }
+  if(push&&pendingAtStart&&localStorage.getItem(localKey+'-auto-sync-pending')===pendingAtStart)localStorage.removeItem(localKey+'-auto-sync-pending');
   const changed=syncCanonical(local)!==syncCanonical(merged.data);
   if(changed){
    const detail={records:merged.data,result:null};window.dispatchEvent(new CustomEvent('gestao-aplicar-sincronizacao',{detail}));
