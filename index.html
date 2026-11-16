@@ -1552,11 +1552,43 @@ function mergeDeviceData(remote,local,base){
  for(const [tab,ids] of Object.entries(deleted))if(Array.isArray(result[tab]))result[tab]=result[tab].filter(r=>!r||!ids[String(r.id)]);
  return{data:result,conflicts};
 }
+
+async function deviceCloudRequest(path,token,{body,timeoutMs=90000}={}){
+ const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),timeoutMs);
+ try{
+  const response=await fetch(cfg.url+'/rest/v1/'+path,{
+   method:body===undefined?'GET':'POST',headers:{apikey:cfg.publishableKey,Authorization:'Bearer '+token,...(body===undefined?{}:{'Content-Type':'application/json'})},
+   ...(body===undefined?{}:{body:JSON.stringify(body)}),signal:abort.signal,cache:'no-store'
+  });
+  let result=null;try{result=await response.json();}catch{}
+  if(!response.ok)throw Object.assign(Error(result?.message||'O servidor da nuvem respondeu HTTP '+response.status),{status:response.status});
+  return result;
+ }catch(error){if(error.name==='AbortError')throw Object.assign(Error('O servidor não confirmou a operação dentro do prazo.'),{status:504});throw error;}
+ finally{clearTimeout(timer);}
+}
+async function writeDeviceSnapshot(payload,expectedVersion,token,onPending){
+ const writeId=crypto.randomUUID(),snapshot={...payload,_sync_write_id:writeId};
+ try{
+  const version=await deviceCloudRequest('rpc/sincronizar_gestao',token,{body:{conteudo_novo:snapshot,versao_esperada:expectedVersion},timeoutMs:180000});
+  return {snapshot,version};
+ }catch(error){
+  if(error.status&&!([500,502,503,504].includes(error.status)))throw error;
+  onPending();
+  // A timed-out request may already have committed. Check its unique marker
+  // before offering another upload; never blindly repeat the write.
+  try{
+   const rows=await deviceCloudRequest('gestao_dados?select=atualizado_em,write_id:conteudo->>_sync_write_id&id=eq.templo',token,{timeoutMs:20000});
+   if(rows?.[0]?.write_id===writeId)return {snapshot,version:rows[0].atualizado_em};
+  }catch{}
+  throw Error('A nuvem não confirmou este envio. Seus dados continuam neste aparelho. Aguarde o servidor voltar a responder e use Atualizar e sincronizar novamente');
+ }
+}
+
 let deviceSyncBusy=false;
 window.addEventListener('gestao-exclusao',()=>{const run=()=>{if(deviceSyncBusy){setTimeout(run,300);return;}void synchronizeDevices(true);};run();});
 async function synchronizeDevices(push=false){
  if(role!=='admin'||deviceSyncBusy||(!push&&window.GESTAO_UNSAVED_FORM))return;
- deviceSyncBusy=true;const button=root.querySelector('#cloud-device-sync');
+ deviceSyncBusy=true;window.GESTAO_DEVICE_SYNC_BUSY=true;const button=root.querySelector('#cloud-device-sync');
  if(button)button.disabled=true;
  const controller=new AbortController();
  const bounded=(operation,label,ms=45000)=>new Promise((resolve,reject)=>{const timer=setTimeout(()=>{controller.abort();reject(Error(label+' demorou demais. Confira a internet e tente novamente.'));},ms);Promise.resolve(operation).then(value=>{clearTimeout(timer);resolve(value);},error=>{clearTimeout(timer);reject(error);});});
@@ -1566,16 +1598,15 @@ async function synchronizeDevices(push=false){
   if(push&&window.GESTAO_RADIO_DIRTY){document.querySelector('[data-rf-save]')?.click();if(window.GESTAO_RADIO_DIRTY)throw Error('Confira e salve a ficha de Radiestesia antes de sincronizar.');}
   const {data:session}=await bounded(client.auth.getSession(),'A validação da conta');const user=session.session?.user;
   if(!user)throw Error('Entre com sua conta para sincronizar.');
+  const syncToken=await bounded(publicationAdminToken(),'A validação do administrador');
   const baseKey=localKey+'-device-sync-base-'+user.id;
   let base={};try{base=JSON.parse(localStorage.getItem(baseKey)||'{}')}catch{}
   const versionKey=baseKey+'-remote-version';
   if(!push){
-   const {data:head,error:headError}=await bounded(client.from('gestao_dados').select('atualizado_em').eq('id','templo').maybeSingle().abortSignal(controller.signal),'A consulta da versão');
-   if(headError)throw headError;
+   const heads=await deviceCloudRequest('gestao_dados?select=atualizado_em&id=eq.templo',syncToken,{timeoutMs:20000});const head=heads?.[0];
    if(head?.atualizado_em&&localStorage.getItem(versionKey)===head.atualizado_em)return;
   }
-  const {data:row,error}=await bounded(client.from('gestao_dados').select('conteudo,atualizado_em').eq('id','templo').maybeSingle().abortSignal(controller.signal),'A consulta da nuvem');
-  if(error)throw error;
+  const remoteRows=await deviceCloudRequest('gestao_dados?select=conteudo,atualizado_em&id=eq.templo',syncToken);let row=remoteRows?.[0];
   const remote=row?.conteudo||{},local=JSON.parse(localStorage.getItem(localKey)||'{}');
   const aux={};
   for(const suffix of ['_sessoes_exu_status_v1','_sessoes_cigana_status_v1','_financeiro_extra_status_v1']){
@@ -1588,9 +1619,9 @@ async function synchronizeDevices(push=false){
    localStorage.setItem(localKey+'-before-device-sync',JSON.stringify({records:local,remote,createdAt:new Date().toISOString()}));
    if(window.GESTAO_STORAGE_FLUSH)await bounded(window.GESTAO_STORAGE_FLUSH(),'A gravação do backup');
    if(push)msg('Enviando cadastros e anexos para a nuvem…');
-   const {data:writtenVersion,error:writeError}=await bounded(client.rpc('sincronizar_gestao',{conteudo_novo:merged.data,versao_esperada:row?.atualizado_em||null}).abortSignal(controller.signal),'O envio dos dados',65000);
-   if(writeError)throw writeError;
-   if(writtenVersion&&row)row.atualizado_em=writtenVersion;
+   const written=await writeDeviceSnapshot(merged.data,row?.atualizado_em||null,syncToken,()=>msg('O envio demorou. Conferindo se a nuvem já gravou os dados…'));
+   merged.data=written.snapshot;
+   row={...row,atualizado_em:written.version||row?.atualizado_em};
   }
   const changed=syncCanonical(local)!==syncCanonical(merged.data);
   if(changed){
@@ -1604,16 +1635,17 @@ async function synchronizeDevices(push=false){
   if(row?.atualizado_em)localStorage.setItem(versionKey,row.atualizado_em);
   if(push){
    if(window.GESTAO_STORAGE_FLUSH)await bounded(window.GESTAO_STORAGE_FLUSH(),'A gravação neste aparelho');
+   window.GESTAO_DEVICE_SYNC_BUSY=false;
    msg('Cadastros enviados. Finalizando fichas de radiestesia…');
    let radioPending=false;
    if(window.GESTAO_RADIO_SYNC)try{await bounded(window.GESTAO_RADIO_SYNC(),'A sincronização da radiestesia',15000);}catch{radioPending=true;}
    const radio=document.getElementById('rf-cloud-status')?.textContent||'';
-   msg('Sincronização concluída. Abra o app no notebook ou iPhone com a mesma conta e aguarde até 15 segundos.'+(merged.conflicts?' Edições diferentes foram preservadas em cópias.':'')+((radioPending||(radio&&!radio.startsWith('Sincronizado com')))?' Confira também o estado da sincronização na Radiestesia.':''));
+   msg('Sincronização concluída. Abra o app no notebook ou iPhone com a mesma conta e aguarde até 30 segundos.'+(merged.conflicts?' Edições diferentes foram preservadas em cópias.':'')+((radioPending||(radio&&!radio.startsWith('Sincronizado com')))?' Confira também o estado da sincronização na Radiestesia.':''));
   }
  }catch(error){if(push)msg('Não foi possível concluir: '+errorText(error)+'. Os dados deste aparelho foram mantidos.');}
- finally{deviceSyncBusy=false;if(button)button.disabled=false;}
+ finally{deviceSyncBusy=false;window.GESTAO_DEVICE_SYNC_BUSY=false;if(button)button.disabled=false;}
 }
-setInterval(()=>{if(!document.hidden)void synchronizeDevices(false)},15000);
+setInterval(()=>{if(!document.hidden)void synchronizeDevices(false)},30000);
 window.addEventListener('online',()=>void synchronizeDevices(false));
 
 async function recoverFoundData(){
@@ -1686,7 +1718,7 @@ const priorSelectChange=select.onchange;select.onchange=()=>{priorSelectChange()
 function queueCloud(record){if(form.dataset.cloudRecord===record.id)revisions[record.id]=Number(form.dataset.cloudBase||0);pending.add(record.id);persistMeta();void syncCloud();}
 form.addEventListener('input',()=>{editDirty=true;window.GESTAO_RADIO_DIRTY=true;});
 async function syncCloud(){
- if(syncing)return;syncing=true;
+ if(syncing||window.GESTAO_DEVICE_SYNC_BUSY)return;syncing=true;
  try{
   syncText.textContent='Sincronizando fichas…';
   const res=await radioTransport('/api/radiestesia',{cache:'no-store'});if(!res.ok)throw Error(res.status===401?'Entre novamente com sua conta do ChatGPT.':'Não foi possível consultar a nuvem.');
@@ -1721,7 +1753,7 @@ window.GESTAO_RADIO_SYNC=syncCloud;
 document.getElementById('rf-sync-now').onclick=()=>void syncCloud();
 window.addEventListener('online',()=>void syncCloud());
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)void syncCloud();});
-setInterval(()=>{if(!document.hidden)void syncCloud();},10000);
+setInterval(()=>{if(!document.hidden)void syncCloud();},30000);
 void syncCloud();
 if(/^#(?:rf-|ficha-radiestesia|avaliacao-radiestesia)/.test(location.hash)){const tab=[...document.querySelectorAll('[data-tab]')].find(b=>b.dataset.tab==='📋 Prontuário consulente radiestesia');if(tab)tab.click();}
 })();</script><script src="./install.js?v=156" defer></script></body></html>
