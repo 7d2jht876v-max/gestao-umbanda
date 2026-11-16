@@ -1543,8 +1543,32 @@ async function synchronizeDevices(push=false){
    if(headError)throw headError;
    if(head?.atualizado_em&&localStorage.getItem(versionKey)===head.atualizado_em)return;
   }
-  const {data:row,error}=await bounded(client.from('gestao_dados').select('conteudo,atualizado_em').eq('id','templo').maybeSingle().abortSignal(controller.signal),'A consulta da nuvem');
-  if(error)throw error;
+  let row;
+  const {data:cloudHead,error:cloudHeadError}=await bounded(client.from('gestao_dados').select('atualizado_em').eq('id','templo').maybeSingle().abortSignal(controller.signal),'A consulta da versão');
+  if(cloudHeadError)throw cloudHeadError;
+  if(!cloudHead)row=null;
+  else if(localStorage.getItem(versionKey)===cloudHead.atualizado_em&&Object.keys(base).length){
+   row={conteudo:base,atualizado_em:cloudHead.atualizado_em};
+  }else{
+   const readPart=async numero=>{
+    const {data,error}=await bounded(client.rpc('ler_gestao_parte',{numero,versao_esperada:cloudHead.atualizado_em}).abortSignal(controller.signal),'A leitura da parte '+(numero+1));
+    if(error)throw error;if(!data||data.empty)throw Error('Os dados da nuvem mudaram. Tente novamente.');return data;
+   };
+   const first=await readPart(0);
+   if(!Number.isInteger(first.partes)||first.partes<1||first.partes>200)throw Error('Quantidade de partes inválida.');
+   const chunks=[];
+   const decode=payload=>{const binary=atob(payload),bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);return bytes;};
+   chunks.push(decode(first.payload));
+   for(let part=1;part<first.partes;part++){
+    msg('Recebendo dados da nuvem: parte '+(part+1)+' de '+first.partes+'. Mantenha o aplicativo aberto.');
+    const piece=await readPart(part);
+    if(piece.versao!==first.versao||piece.partes!==first.partes||piece.numero!==part)throw Error('A versão da nuvem mudou durante a leitura. Tente novamente.');
+    chunks.push(decode(piece.payload));
+   }
+   if(chunks.reduce((sum,part)=>sum+part.length,0)!==first.bytes)throw Error('Leitura incompleta. Os dados locais foram mantidos.');
+   const content=JSON.parse(await new Blob(chunks).text());
+   row={conteudo:content,atualizado_em:first.versao};
+  }
   const remote=row?.conteudo||{},local=JSON.parse(localStorage.getItem(localKey)||'{}');
   const aux={};
   for(const suffix of ['_sessoes_exu_status_v1','_sessoes_cigana_status_v1','_financeiro_extra_status_v1']){
@@ -1559,7 +1583,7 @@ async function synchronizeDevices(push=false){
    if(push)msg('Enviando cadastros e anexos para a nuvem…');
    const {data:writtenVersion,error:writeError}=await bounded(client.rpc('sincronizar_gestao',{conteudo_novo:merged.data,versao_esperada:row?.atualizado_em||null}).abortSignal(controller.signal),'O envio dos dados',65000);
    if(writeError)throw writeError;
-   if(writtenVersion&&row)row.atualizado_em=writtenVersion;
+   if(writtenVersion)row={...(row||{}),atualizado_em:writtenVersion};
    if(pendingAtStart&&localStorage.getItem(localKey+'-auto-sync-pending')===pendingAtStart)localStorage.removeItem(localKey+'-auto-sync-pending');
   }
   if(push&&pendingAtStart&&localStorage.getItem(localKey+'-auto-sync-pending')===pendingAtStart)localStorage.removeItem(localKey+'-auto-sync-pending');
