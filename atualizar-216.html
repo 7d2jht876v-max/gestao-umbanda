@@ -1,0 +1,13 @@
+<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Atualizar Gestão Umbanda</title><style>body{font:18px system-ui;background:#f7f3ee;color:#3c2c22;margin:0;padding:24px}main{max-width:600px;margin:10vh auto;background:white;border-radius:18px;padding:25px}button,a{display:inline-block;background:#704b32;color:white;border:0;border-radius:10px;padding:14px;font:inherit}p{line-height:1.6}</style><main><h1>Gestão Umbanda</h1><p id="status" role="status">Verificando a atualização 216…</p><button id="retry" hidden>Tentar novamente</button></main><script>
+async function update(){
+ const status=document.getElementById('status'),retry=document.getElementById('retry');retry.hidden=true;
+ try{
+  const url=new URL('./index.html',location.href);url.searchParams.set('v','216');url.searchParams.set('atualizado',Date.now());
+  const response=await fetch(url,{cache:'no-store'});const html=await response.text();
+  if(!response.ok||!html.includes('Gestão Umbanda — atualização 216'))throw Error('A nova versão ainda não está disponível. Tente novamente em instantes.');
+  if('serviceWorker' in navigator){try{const reg=await navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'});await reg.update();reg.waiting?.postMessage('ACTIVATE_UPDATE');}catch{}}
+  status.textContent='Atualização 216 encontrada. Abrindo o aplicativo…';location.replace(url.href);
+ }catch(error){status.textContent='Não foi possível carregar a atualização. '+error.message+' Seus dados salvos neste navegador foram mantidos.';retry.hidden=false;}
+}
+document.getElementById('retry').onclick=update;update();
+</script></html>
