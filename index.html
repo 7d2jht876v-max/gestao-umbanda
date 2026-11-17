@@ -1057,11 +1057,14 @@ const localStorage=await window.GESTAO_STORAGE_READY;
 const cfg=window.GESTAO_UMBANDA_SUPABASE;
 const supa=window.supabase;
 if(!cfg||!cfg.publishableKey||!supa){return;}
+// Apenas a conexão HTTPS do notebook pode sincronizar cadastros e anexos.
+// No GitHub Pages o login antigo permanece, mas nenhum dado é enviado à nuvem.
+const localNotebookSync=typeof window.notebookAPI==='function';
 const client=supa.createClient(cfg.url,cfg.publishableKey);window.GESTAO_RADIO_CLIENT=client;
 const root=document.createElement('div');
 root.id='cloud-access';
 root.style.cssText='max-width:720px;margin:14px auto;padding:14px;background:#fff;border:2px solid #b8d2c8;border-radius:12px;font:15px system-ui';
-root.innerHTML='<h2 style="margin:0 0 8px">☁️ Acesso seguro</h2><p id="cloud-status">Verificando acesso…</p><div id="cloud-controls"></div>';
+root.innerHTML='<h2 style="margin:0 0 8px">'+(localNotebookSync?'🏠 Acesso pelo notebook':'🔒 Acesso seguro · Nuvem desativada')+'</h2><p id="cloud-status">Verificando acesso…</p><div id="cloud-controls"></div>';
 document.querySelector('main').prepend(root);
 const status=root.querySelector('#cloud-status'),controls=root.querySelector('#cloud-controls');
 const main=document.querySelector('main');
@@ -1307,7 +1310,7 @@ return target;
 }
 recordsPanel('etica','📜 Código de ética',[['texto','Código de ética']]);
 const agendaPanel=panel('📆 Minha agenda diária');
-const agendaNote=document.createElement('p');agendaNote.textContent='Edite suas atividades e clique em Salvar agenda. Suas alterações ficam salvas na sua conta.';agendaPanel.append(agendaNote);
+const agendaNote=document.createElement('p');agendaNote.textContent=localNotebookSync?'Edite suas atividades e clique em Salvar agenda. Suas alterações ficam salvas na sua conta do notebook.':'Edite suas atividades e clique em Salvar agenda. As novas alterações ficam somente neste aparelho (nuvem desativada).';agendaPanel.append(agendaNote);
 const agendaFeedback=document.createElement('p');agendaFeedback.setAttribute('role','status');agendaPanel.append(agendaFeedback);
 const agendaList=document.createElement('div');agendaPanel.append(agendaList);
 const agendaForm=document.createElement('form');agendaPanel.append(agendaForm);
@@ -1320,7 +1323,9 @@ input.style.width='100%';input.required=key==='data'||key==='rotina';wrap.append
 }
 const saveAgenda=document.createElement('button');saveAgenda.type='submit';saveAgenda.textContent='Salvar agenda';saveAgenda.style.marginTop='12px';agendaForm.append(saveAgenda);
 const newAgenda=document.createElement('button');newAgenda.type='button';newAgenda.textContent='Nova atividade';newAgenda.style.marginLeft='8px';agendaForm.append(newAgenda);
-let agendaEditing=null,agendaItems=new Map();
+let agendaEditing=null,agendaItems=new Map(),agendaLoadFailed=false;
+const personalAgendaStorageKey='gestao-agenda-pessoal-'+user.id;
+function readPersonalAgenda(){try{return JSON.parse(localStorage.getItem(personalAgendaStorageKey)||'{}')}catch{return {};}}
 const agendaKey=row=>'publicada:'+JSON.stringify([row.data||'',row.hora||'',row.rotina||'']);
 for(const row of Array.isArray(d.agenda)?d.agenda:[])agendaItems.set(agendaKey(row),row);
 function fillAgenda(id){
@@ -1342,14 +1347,23 @@ try{
 const {data:savedAgenda,error:agendaError}=await client.from('agenda_pessoal_mediuns').select('entry_id,dados').eq('user_id',user.id);
 if(agendaError)throw agendaError;
 for(const row of savedAgenda||[])agendaItems.set(row.entry_id,row.dados);
-drawAgenda();fillAgenda(null);saveAgenda.disabled=false;newAgenda.disabled=false;
-}catch(err){agendaFeedback.textContent='Não foi possível carregar sua agenda: '+errorText(err);drawAgenda();}
+}catch(err){agendaLoadFailed=true;agendaFeedback.textContent='Não foi possível carregar a agenda antiga: '+errorText(err);}
+if(!localNotebookSync){for(const [id,record] of Object.entries(readPersonalAgenda()))agendaItems.set(id,record);}
+drawAgenda();fillAgenda(null);saveAgenda.disabled=agendaLoadFailed&&localNotebookSync;newAgenda.disabled=agendaLoadFailed&&localNotebookSync;
 agendaForm.onsubmit=async event=>{
 event.preventDefault();if(saveAgenda.disabled)return;
 saveAgenda.disabled=true;newAgenda.disabled=true;agendaFeedback.textContent='Salvando…';
 const id=agendaEditing||'pessoal:'+crypto.randomUUID();
 const record=Object.fromEntries(Object.entries(agendaInputs).map(([key,input])=>[key,input.value.trim()]));
 try{
+if(!localNotebookSync){
+ const stored=readPersonalAgenda();stored[id]=record;
+ localStorage.setItem(personalAgendaStorageKey,JSON.stringify(stored));
+ await window.GESTAO_STORAGE_FLUSH?.();
+ agendaItems.set(id,record);drawAgenda();fillAgenda(id);
+ agendaFeedback.textContent='Agenda salva somente neste aparelho. Nenhum dado foi enviado à nuvem.';
+ return;
+}
 const {data:session}=await client.auth.getSession();if(session?.session?.user?.id!==user.id)throw Error('Entre novamente na sua conta.');
 const {data:written,error:writeError}=await client.from('agenda_pessoal_mediuns').upsert({user_id:user.id,entry_id:id,dados:record},{onConflict:'user_id,entry_id'}).select('entry_id,dados').single();
 if(writeError)throw writeError;
@@ -1390,6 +1404,7 @@ msg('Conectado: '+user.email+' • Acesso individual para consulta dos seus dado
 }
 let mediumPublishBusy=false;
 async function publishMediumData(){
+if(!localNotebookSync){msg('Publicação na nuvem desativada. Os cadastros permanecem neste aparelho; use o servidor do notebook para publicar.');return;}
 if(role!=='admin'||mediumPublishBusy||deviceSyncBusy)return;
 let source;try{source=JSON.parse(localStorage.getItem(localKey)||'{}')}catch{msg('Não foi possível ler os cadastros locais.');return}
 const meds=source['👥 Médiuns']||[];
@@ -1448,12 +1463,20 @@ if(publishButton)publishButton.disabled=false;
 function accessTimeout(operation){return new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('O servidor demorou para verificar o acesso. Tente novamente em instantes.')),12000);Promise.resolve(operation).then(value=>{clearTimeout(timer);resolve(value)},error=>{clearTimeout(timer);reject(error)});});}
 async function refresh(){try{if(recovering){showRecoveryForm();return;}const {data:{user},error}=await accessTimeout(client.auth.getUser());if(error||!user){role=null;msg('Entre com seu e-mail e senha cadastrados no Supabase. Os dados atuais permanecem no iPhone.');formLogin();return;}
 const result=await accessTimeout(client.from('perfis').select('perfil').eq('id',user.id).single());if(result.error){role=null;msg('Login realizado, mas o perfil não foi encontrado: '+errorText(result.error));controls.innerHTML='<button id="cloud-out">Sair</button>';root.querySelector('#cloud-out').onclick=logout;return;}
-role=result.data.perfil;if(role!=='admin'){await showMediumPortal();return;}setAccess(true);msg('Conectado: '+user.email+' • '+(role==='admin'?'Administrador':'Médium')+'. Use Sincronizar para atualizar o iPhone e o notebook.');
+role=result.data.perfil;if(role!=='admin'){await showMediumPortal();return;}setAccess(true);msg(localNotebookSync?'Conectado: '+user.email+' • Administrador. Use Sincronizar para atualizar o iPhone e o notebook.':'Conectado: '+user.email+' • Sincronização em nuvem DESATIVADA. Cadastros e anexos continuam salvos neste aparelho. Para sincronizar, abra o aplicativo pelo endereço HTTPS do notebook na mesma rede Wi-Fi.');
 controls.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap"><button id="medium-publish">Publicar dados individuais dos médiuns</button><button id="medium-provision">Cadastrar acessos com senha padrão</button><button id="cloud-device-sync">Sincronizar</button><button id="cloud-out" style="background:#666">Sair</button></div>';
 root.querySelector('#cloud-out').onclick=logout;
 root.querySelector('#cloud-device-sync').onclick=()=>void synchronizeDevices(true,true);
 root.querySelector('#medium-publish').onclick=publishMediumData;
-if(new URLSearchParams(location.search).get('publicar')==='1'){
+if(!localNotebookSync){
+ for(const selector of ['#cloud-device-sync','#medium-publish','#medium-provision']){
+  const control=root.querySelector(selector);
+  control.disabled=true;
+  control.title='Envio para a nuvem desativado. Use o aplicativo do servidor do notebook.';
+ }
+ root.querySelector('#cloud-device-sync').textContent='Nuvem desativada';
+}
+if(localNotebookSync&&new URLSearchParams(location.search).get('publicar')==='1'){
  const publishButton=root.querySelector('#medium-publish');
  publishButton.style.cssText='background:#ad6320;outline:3px solid #f1c56b;outline-offset:3px';
  const tip=document.createElement('p');tip.textContent='Toque no botão destacado para publicar os cadastros individuais dos médiuns.';tip.style.fontWeight='bold';controls.prepend(tip);
@@ -1462,6 +1485,7 @@ if(new URLSearchParams(location.search).get('publicar')==='1'){
 
 
 root.querySelector('#medium-provision').onclick=async()=>{
+ if(!localNotebookSync){msg('Cadastro de acessos na nuvem desativado. Use o servidor do notebook.');return;}
  const button=root.querySelector('#medium-provision');button.disabled=true;
  msg('Cadastrando acessos dos e-mails publicados…');
  try{
@@ -1589,6 +1613,10 @@ function syncRemoteFromIndex(seed,patch,index){
 let deviceSyncBusy=false;
 window.addEventListener('gestao-exclusao',()=>{const run=()=>{if(deviceSyncBusy){setTimeout(run,300);return;}void synchronizeDevices(true);};run();});
 async function synchronizeDevices(push=false,manual=false){
+ if(!localNotebookSync){
+  if(manual)msg('Sincronização em nuvem desativada. Nada foi apagado deste aparelho. Para sincronizar com o notebook, use seu endereço HTTPS na mesma rede Wi-Fi.');
+  return;
+ }
  if(manual)localStorage.removeItem(localKey+'-sync-retry-after');
  if(Date.now()<Number(localStorage.getItem(localKey+'-sync-retry-after')||0))return;
  if(role!=='admin'||deviceSyncBusy||mediumPublishBusy||(!push&&window.GESTAO_UNSAVED_FORM))return;
@@ -1799,9 +1827,13 @@ try{revisions=JSON.parse(localStorage.getItem(metaKey)||'{}');pending=new Set(JS
 for(const r of records)if(!revisions[r.id])pending.add(r.id);
 function persistMeta(){localStorage.setItem(metaKey,JSON.stringify(revisions));localStorage.setItem(pendingKey,JSON.stringify([...pending]));}
 const priorSelectChange=select.onchange;select.onchange=()=>{priorSelectChange();form.dataset.cloudRecord=id;form.dataset.cloudBase=String(revisions[id]||0);};
-function queueCloud(record){if(form.dataset.cloudRecord===record.id)revisions[record.id]=Number(form.dataset.cloudBase||0);pending.add(record.id);persistMeta();void syncCloud();}
+function queueCloud(record){if(!window.notebookAPI)return;if(form.dataset.cloudRecord===record.id)revisions[record.id]=Number(form.dataset.cloudBase||0);pending.add(record.id);persistMeta();void syncCloud();}
 form.addEventListener('input',()=>{editDirty=true;window.GESTAO_RADIO_DIRTY=true;});
 async function syncCloud(){
+ if(!window.notebookAPI){
+  syncText.textContent='Nuvem desativada. Fichas preservadas neste aparelho; abra o servidor do notebook para sincronizar.';
+  return;
+ }
  if(syncing)return;syncing=true;
  try{
   syncText.textContent='Sincronizando fichas…';
@@ -1834,7 +1866,9 @@ async function syncCloud(){
  finally{syncing=false;}
 }
 window.GESTAO_RADIO_SYNC=syncCloud;
-document.getElementById('rf-sync-now').onclick=()=>void syncCloud();
+const radioSyncButton=document.getElementById('rf-sync-now');
+radioSyncButton.onclick=()=>void syncCloud();
+if(!window.notebookAPI){radioSyncButton.disabled=true;radioSyncButton.textContent='Nuvem desativada';}
 window.addEventListener('online',()=>void syncCloud());
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)void syncCloud();});
 setInterval(()=>{if(!document.hidden)void syncCloud();},10000);

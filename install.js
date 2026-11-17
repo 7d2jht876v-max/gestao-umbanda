@@ -1,6 +1,6 @@
 (() => {
   // Mantém o suporte offline sem exibir o quadro de instalação.
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
-    navigator.serviceWorker.register('./sw.js?v=216').catch(() => {});
+    navigator.serviceWorker.register('./sw.js?v=216.7-nuvem-desativada').catch(() => {});
   }
 })();
