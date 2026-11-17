@@ -488,13 +488,13 @@ def local_index(source):
     source=source.replace('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>', '<script src="/notebook-client.js"></script>')
     import re
     source=re.sub(r'<script src="\./supabase-config\.js[^\"]*"></script>', '', source)
-    source=source.replace('216.7','Notebook 1.0')
+    source=source.replace('atualização 217','Notebook 1.0').replace('Atualização 217','Notebook 1.0')
     source=source.replace('async flush(){await tail;if(failure)throw failure;}', '''removeItem(key){key=String(key);if(!managed(key)){native.removeItem(key);return;}const previous=cache.get(key);cache.delete(key);tail=tail.catch(()=>{}).then(()=>new Promise((resolve,reject)=>{const tx=db.transaction('values','readwrite');tx.objectStore('values').delete(key);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);})).catch(error=>{if(!cache.has(key)&&previous!==undefined)cache.set(key,previous);failure=error;showError(error);throw error;});tail.catch(()=>{});},
 async flush(){await tail;if(failure)throw failure;}''')
 
     # Keep the server-returned index; regenerate mismatch-free index after confirmed upload via a lightweight RPC.
     source=source.replace('if(push)localStorage.setItem(indexKey,JSON.stringify(await createSyncIndex(merged.data)));', "if(push){const indexed=await notebookAPI('/api/rpc',{name:'indice_notebook',args:{versao_esperada:row?.atualizado_em||null}});if(indexed.error)throw indexed.error;localStorage.setItem(indexKey,JSON.stringify(indexed.data));}")
-    source=source.replace("url.searchParams.set('v','216');", "url.searchParams.set('v','notebook-1');")
+    source=source.replace("url.searchParams.set('v','217');", "url.searchParams.set('v','notebook-1');")
     source=source.replace('Cadastrar acessos com senha padrão','Criar acessos dos médiuns')
     source=source.replace('Cadastrando acessos dos e-mails publicados…','Criando acessos dos e-mails publicados…')
     source=source.replace('Execute o SQL de configuração: ', 'Servidor do notebook: ')

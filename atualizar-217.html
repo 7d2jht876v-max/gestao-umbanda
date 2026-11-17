@@ -2,11 +2,11 @@
 async function update(){
  const status=document.getElementById('status'),retry=document.getElementById('retry');retry.hidden=true;
  try{
-  const url=new URL('./index.html',location.href);url.searchParams.set('v','214');url.searchParams.set('atualizado',Date.now());
+  const url=new URL('./index.html',location.href);url.searchParams.set('v','217');url.searchParams.set('atualizado',Date.now());
   const response=await fetch(url,{cache:'no-store'});const html=await response.text();
-  if(!response.ok||!html.includes('Gestão Umbanda — atualização 214'))throw Error('A nova versão ainda não está disponível. Tente novamente em instantes.');
+  if(!response.ok||!html.includes('Gestão Umbanda — atualização 217'))throw Error('A nova versão ainda não está disponível. Tente novamente em instantes.');
   if('serviceWorker' in navigator){try{const reg=await navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'});await reg.update();reg.waiting?.postMessage('ACTIVATE_UPDATE');}catch{}}
-  status.textContent='Atualização 214 encontrada. Abrindo o aplicativo…';location.replace(url.href);
+  status.textContent='Atualização 217 encontrada. Abrindo o aplicativo…';location.replace(url.href);
  }catch(error){status.textContent='Não foi possível carregar a atualização. '+error.message+' Seus dados salvos neste navegador foram mantidos.';retry.hidden=false;}
 }
 document.getElementById('retry').onclick=update;update();

@@ -28,7 +28,7 @@ jobs:
       - name: Prepare static site
         run: |
           mkdir -p _site
-          cp index.html supabase-config.js cloud-sync.js install.js sw.js manifest.webmanifest baralho-cigano.html _site/
+          cp index.html supabase-config.js cloud-sync.js install.js sw.js manifest.webmanifest baralho-cigano.html atualizar-217.html _site/
           cp -R icons _site/icons
           touch _site/.nojekyll
       - name: Upload Pages artifact
