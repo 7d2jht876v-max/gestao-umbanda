@@ -488,7 +488,8 @@ def local_index(source):
     source=source.replace('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>', '<script src="/notebook-client.js"></script>')
     import re
     source=re.sub(r'<script src="\./supabase-config\.js[^\"]*"></script>', '', source)
-    source=source.replace('atualização 217','Notebook 1.0').replace('Atualização 217','Notebook 1.0')
+    # Preserve the public application's visible release number on the notebook.
+    # Only the network transport is local; the web interface remains version 217.
     source=source.replace('async flush(){await tail;if(failure)throw failure;}', '''removeItem(key){key=String(key);if(!managed(key)){native.removeItem(key);return;}const previous=cache.get(key);cache.delete(key);tail=tail.catch(()=>{}).then(()=>new Promise((resolve,reject)=>{const tx=db.transaction('values','readwrite');tx.objectStore('values').delete(key);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);})).catch(error=>{if(!cache.has(key)&&previous!==undefined)cache.set(key,previous);failure=error;showError(error);throw error;});tail.catch(()=>{});},
 async flush(){await tail;if(failure)throw failure;}''')
 
@@ -504,7 +505,9 @@ async flush(){await tail;if(failure)throw failure;}''')
     source=source.replace('Os médiuns podem entrar com o e-mail cadastrado e a senha padrão.', 'As senhas exclusivas foram apresentadas na janela de acessos.')
     source=source.replace('Abra o app no notebook ou iPhone com a mesma conta e aguarde até 15 segundos.', 'Abra este endereço do notebook no iPhone, na mesma rede Wi-Fi e com a mesma conta.')
     source=source.replace('na nuvem','no notebook').replace('à nuvem','ao notebook').replace('da nuvem','do notebook')
-    source=source.replace('</header>','<p><a href="/gestao-notebook.html" style="color:white">Servidor: importar dados, backup e acessos</a></p></header>',1)
+    # A second paragraph inside the CSS grid header overlaps the version label.
+    # Keep the server-management link outside the header and always accessible.
+    source=source.replace('</header>','</header><div id="notebook-server-link" style="padding:10px 18px;text-align:center;background:#f1e7dd;border-bottom:1px solid #d6bfae"><a href="/gestao-notebook.html" style="color:#54351f;font-weight:700">Servidor: importar dados, backup e acessos</a></div>',1)
     return source
 
 class Server(ThreadingHTTPServer):

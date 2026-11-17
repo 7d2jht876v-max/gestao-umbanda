@@ -18,7 +18,10 @@ class Release217Tests(unittest.TestCase):
         self.assertIn("url.searchParams.set('v','217')", html)
         self.assertIn("const localNotebookSync=typeof window.notebookAPI==='function';", html)
         notebook = local_index(html)
-        self.assertIn('Gestão Umbanda — Notebook 1.0', notebook)
+        self.assertIn('Gestão Umbanda — atualização 217', notebook)
+        self.assertIn('Organização do templo • Atualização 217', notebook)
+        self.assertIn('id="notebook-server-link"', notebook)
+        self.assertNotIn('notebook-server-link', notebook.split('</header>', 1)[0])
         self.assertIn('/notebook-client.js', notebook)
         self.assertNotIn('supabase.min.js', notebook)
 
