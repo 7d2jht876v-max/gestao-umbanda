@@ -16,7 +16,15 @@ class CloudDisabledTests(unittest.TestCase):
         self.assertIn("const localNotebookSync=typeof window.notebookAPI==='function';", self.html)
         self.assertIn('async function publishMediumData(){\nif(!localNotebookSync)', self.html)
         self.assertIn('async function synchronizeDevices(push=false,manual=false){\n if(!localNotebookSync)', self.html)
-        self.assertIn("root.querySelector('#cloud-device-sync').textContent='Nuvem desativada';", self.html)
+        self.assertIn("root.querySelector('#cloud-device-sync').onclick=()=>localNotebookSync?void synchronizeDevices(true,true):toggleNotebookConnection();", self.html)
+        self.assertIn("for(const selector of ['#medium-publish','#medium-provision'])", self.html)
+
+    def test_public_sync_button_prepares_safe_local_transfer(self):
+        self.assertIn('🔄 Sincronizar notebook e iPhone', self.html)
+        self.assertIn("format:'gestao-transferencia-notebook'", self.html)
+        self.assertIn('async function exportForNotebook()', self.html)
+        self.assertIn("address.origin+'/configurar'", self.html)
+        self.assertIn('A transferência não ocorre automaticamente entre endereços diferentes.', self.html)
 
     def test_medium_agenda_is_saved_on_device_without_remote_upsert(self):
         self.assertIn("const personalAgendaStorageKey='gestao-agenda-pessoal-'+user.id;", self.html)

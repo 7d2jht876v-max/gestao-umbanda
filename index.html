@@ -1461,20 +1461,53 @@ if(publishButton)publishButton.disabled=false;
 }
 
 function accessTimeout(operation){return new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('O servidor demorou para verificar o acesso. Tente novamente em instantes.')),12000);Promise.resolve(operation).then(value=>{clearTimeout(timer);resolve(value)},error=>{clearTimeout(timer);reject(error)});});}
+async function exportForNotebook(){
+ if(window.GESTAO_UNSAVED_FORM||window.GESTAO_RADIO_DIRTY)throw Error('Salve primeiro o cadastro ou a ficha de radiestesia que estiver editando.');
+ if(window.GESTAO_STORAGE_FLUSH)await window.GESTAO_STORAGE_FLUSH();
+ const allowed=key=>/^gestao[-_]/i.test(String(key))&&!/(device-sync|before-device|upload-delta|auto-sync-pending|sync-retry|supabase-revisions|supabase-pending)/i.test(String(key));
+ const keys=typeof localStorage.keys==='function'?localStorage.keys():Array.from({length:localStorage.length},(_,i)=>localStorage.key(i));
+ const storage={};for(const key of keys)if(allowed(key)){const value=localStorage.getItem(key);if(value!==null)storage[key]=value;}
+ const records=JSON.parse(storage[localKey]||'{}');
+ const count=Object.values(records).filter(Array.isArray).reduce((total,rows)=>total+rows.length,0);
+ if(!count&&!storage['gestao-umbanda-radiestesia-fichas-v1'])throw Error('Nenhum cadastro encontrado neste aparelho. Os dados existentes nao foram alterados.');
+ const transfer={format:'gestao-transferencia-notebook',version:1,exportedAt:new Date().toISOString(),storage};
+ const url=URL.createObjectURL(new Blob([JSON.stringify(transfer)],{type:'application/json'}));
+ const link=document.createElement('a');link.href=url;link.download='transferencia-gestao-notebook-'+new Date().toISOString().slice(0,10)+'.json';document.body.append(link);link.click();link.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
+function toggleNotebookConnection(){
+ let guide=root.querySelector('#notebook-connect-guide');
+ if(!guide){
+  guide=document.createElement('section');guide.id='notebook-connect-guide';guide.hidden=true;
+  guide.style.cssText='margin-top:16px;padding:16px;border:1px solid #d6bfae;border-radius:12px;background:#fdf8f2';
+  const heading=document.createElement('h3');heading.textContent='🔄 Conectar notebook e iPhone';heading.style.marginTop='0';
+  const note=document.createElement('p');note.textContent='Este aplicativo está no endereço antigo da internet. Para sincronizar sem nuvem, primeiro guarde um backup dos registros deste aparelho, depois abra o endereço HTTPS do servidor na mesma rede Wi-Fi. A transferência não ocorre automaticamente entre endereços diferentes.';
+  const backup=document.createElement('button');backup.type='button';backup.textContent='1. Baixar backup completo deste aparelho';
+  const feedback=document.createElement('p');feedback.setAttribute('role','status');feedback.style.fontWeight='600';
+  backup.onclick=async()=>{backup.disabled=true;feedback.textContent='Preparando backup sem usar a nuvem…';try{await exportForNotebook();feedback.textContent='Backup solicitado. Confira Arquivos ou Downloads antes de continuar.';}catch(error){feedback.textContent='Backup não concluído: '+errorText(error);}finally{backup.disabled=false;}};
+  const label=document.createElement('label');label.textContent='2. Endereço HTTPS do notebook (confira na janela do INICIAR.bat)';label.style.cssText='display:block;margin-top:14px;font-weight:600';
+  const field=document.createElement('input');field.type='url';field.id='notebook-connection-url';field.value=localStorage.getItem('gestao-notebook-endereco-v1')||'https://192.168.0.99:8787/';field.style.cssText='display:block;margin:8px 0 12px;padding:12px;width:100%;box-sizing:border-box';label.append(field);
+  const open=document.createElement('button');open.type='button';open.textContent='3. Abrir servidor e importar backup';
+  open.onclick=()=>{try{const address=new URL(field.value.trim());const host=address.hostname;const localHost=host==='localhost'||host==='127.0.0.1'||/^192\.168\.\d{1,3}\.\d{1,3}$/.test(host)||/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host)||/^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(host)||host.endsWith('.local');if(address.protocol!=='https:'||address.port!=='8787'||!localHost)throw Error('Use o endereço HTTPS local exibido pelo INICIAR.bat, com a porta 8787.');localStorage.setItem('gestao-notebook-endereco-v1',address.origin+'/');window.open(address.origin+'/configurar','_blank','noopener');feedback.textContent='No servidor, selecione o backup JSON e use Importar. Os registros existentes serão preservados.';}catch(error){feedback.textContent=errorText(error);}};
+  const caution=document.createElement('p');caution.textContent='Não use Importar backup da página antiga para substituir cadastros. No servidor, a opção Importar preserva registros diferentes em cópias. Faça isso também com o backup do iPhone se ele tiver dados exclusivos.';caution.style.fontSize='14px';
+  guide.append(heading,note,backup,feedback,label,open,caution);controls.append(guide);
+ }
+ guide.hidden=!guide.hidden;if(!guide.hidden)guide.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
 async function refresh(){try{if(recovering){showRecoveryForm();return;}const {data:{user},error}=await accessTimeout(client.auth.getUser());if(error||!user){role=null;msg('Entre com seu e-mail e senha cadastrados no Supabase. Os dados atuais permanecem no iPhone.');formLogin();return;}
 const result=await accessTimeout(client.from('perfis').select('perfil').eq('id',user.id).single());if(result.error){role=null;msg('Login realizado, mas o perfil não foi encontrado: '+errorText(result.error));controls.innerHTML='<button id="cloud-out">Sair</button>';root.querySelector('#cloud-out').onclick=logout;return;}
 role=result.data.perfil;if(role!=='admin'){await showMediumPortal();return;}setAccess(true);msg(localNotebookSync?'Conectado: '+user.email+' • Administrador. Use Sincronizar para atualizar o iPhone e o notebook.':'Conectado: '+user.email+' • Sincronização em nuvem DESATIVADA. Cadastros e anexos continuam salvos neste aparelho. Para sincronizar, abra o aplicativo pelo endereço HTTPS do notebook na mesma rede Wi-Fi.');
-controls.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap"><button id="medium-publish">Publicar dados individuais dos médiuns</button><button id="medium-provision">Cadastrar acessos com senha padrão</button><button id="cloud-device-sync">Sincronizar</button><button id="cloud-out" style="background:#666">Sair</button></div>';
+controls.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap"><button id="medium-publish">Publicar dados individuais dos médiuns</button><button id="medium-provision">Cadastrar acessos com senha padrão</button><button id="cloud-device-sync">🔄 Sincronizar notebook e iPhone</button><button id="cloud-out" style="background:#666">Sair</button></div>';
 root.querySelector('#cloud-out').onclick=logout;
-root.querySelector('#cloud-device-sync').onclick=()=>void synchronizeDevices(true,true);
+root.querySelector('#cloud-device-sync').onclick=()=>localNotebookSync?void synchronizeDevices(true,true):toggleNotebookConnection();
 root.querySelector('#medium-publish').onclick=publishMediumData;
 if(!localNotebookSync){
- for(const selector of ['#cloud-device-sync','#medium-publish','#medium-provision']){
+ for(const selector of ['#medium-publish','#medium-provision']){
   const control=root.querySelector(selector);
   control.disabled=true;
   control.title='Envio para a nuvem desativado. Use o aplicativo do servidor do notebook.';
  }
- root.querySelector('#cloud-device-sync').textContent='Nuvem desativada';
+ root.querySelector('#cloud-device-sync').title='Preparar backup e conectar ao servidor local, sem usar a nuvem.';
 }
 if(localNotebookSync&&new URLSearchParams(location.search).get('publicar')==='1'){
  const publishButton=root.querySelector('#medium-publish');
@@ -1874,6 +1907,6 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)void syncC
 setInterval(()=>{if(!document.hidden)void syncCloud();},10000);
 void syncCloud();
 if(/^#(?:rf-|ficha-radiestesia|avaliacao-radiestesia)/.test(location.hash)){const tab=[...document.querySelectorAll('[data-tab]')].find(b=>b.dataset.tab==='📋 Prontuário consulente radiestesia');if(tab)tab.click();}
-})();</script><script src="./install.js?v=217" defer></script></body></html>
+})();</script><script src="./install.js?v=217-notebook-iphone" defer></script></body></html>
 
 

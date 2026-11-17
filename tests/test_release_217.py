@@ -39,8 +39,8 @@ class Release217Tests(unittest.TestCase):
         worker = (ROOT / 'sw.js').read_text(encoding='utf-8')
         install = (ROOT / 'install.js').read_text(encoding='utf-8')
         workflow = (ROOT / '.github/workflows/jekyll-gh-pages.yml').read_text(encoding='utf-8')
-        self.assertIn("const CACHE = 'gestao-shell-217-nuvem-desativada';", worker)
-        self.assertIn('./sw.js?v=217-nuvem-desativada', install)
+        self.assertIn("const CACHE = 'gestao-shell-217-notebook-iphone';", worker)
+        self.assertIn('./sw.js?v=217-notebook-iphone', install)
         self.assertIn('atualizar-217.html _site/', workflow)
 
 

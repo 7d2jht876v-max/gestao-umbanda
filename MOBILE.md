@@ -9,6 +9,12 @@ O aplicativo mantém as mesmas chaves de armazenamento da versão existente. Nã
 
 O cache offline contém apenas arquivos públicos do aplicativo. Na versão web 217, o envio de dados e a sincronização com Supabase permanecem desativados; o login antigo ainda utiliza Supabase e necessita de internet. O notebook usa seu próprio servidor HTTPS e banco local. Para sincronizar o iPhone com o notebook, use o endereço HTTPS do notebook na mesma rede Wi-Fi, preservando antes os registros que existam somente no iPhone. Videoaulas e outros recursos externos podem necessitar de internet.
 
+## Botão Sincronizar notebook e iPhone
+
+Na versão aberta pelo GitHub Pages, o botão orienta a transferência local: **Baixar backup completo deste aparelho** salva os cadastros e fichas locais em JSON, sem enviar nada para a nuvem. Depois, **Abrir servidor e importar backup** abre a administração HTTPS do notebook, onde a importação preserva diferenças como cópias. É necessário fazer esse processo para cada aparelho que tenha registros exclusivos.
+
+Na versão aberta diretamente pelo endereço HTTPS do notebook, o mesmo botão executa a sincronização com o banco local. O notebook precisa estar ligado, os aparelhos na mesma Wi-Fi e a conta autorizada. Endereços GitHub Pages e HTTPS do notebook têm armazenamentos separados; abrir um não transfere automaticamente o conteúdo do outro.
+
 ## Projeto nativo Android e iOS
 Esta é a base de empacotamento Capacitor, ainda sem binários validados para distribuição. Em ambiente com Node 22 e os SDKs oficiais:
 
