@@ -1,0 +1,41 @@
+name: Pacote de atualizacao segura 217
+on:
+  push:
+    branches: [security/public-access-217]
+    paths:
+      - 'notebook/server.py'
+      - 'notebook/tests/**'
+      - '.github/workflows/pacote-atualizacao-217.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pacote:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validar servidor e testes
+        run: |
+          python -m py_compile notebook/server.py
+          python -m unittest discover -s notebook/tests -v
+      - name: Montar pacote sem dados privados
+        run: |
+          mkdir -p pacote-217
+          cp notebook/server.py pacote-217/server.py
+          cp notebook/ATUALIZAR-217.cmd notebook/ATUALIZAR-217.ps1 pacote-217/
+          cp notebook/ACESSO-PUBLICO-217.md pacote-217/
+          python - <<'PY'
+          from pathlib import Path
+          import zipfile
+          root=Path('pacote-217')
+          with zipfile.ZipFile('Gestao-Umbanda-217-Atualizacao-Segura.zip','w',zipfile.ZIP_DEFLATED) as z:
+              for f in root.iterdir(): z.write(f,f.name)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Gestao-Umbanda-217-Atualizacao-Segura
+          path: Gestao-Umbanda-217-Atualizacao-Segura.zip
+          retention-days: 30
