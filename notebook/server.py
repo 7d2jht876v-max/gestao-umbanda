@@ -437,7 +437,9 @@ class Handler(BaseHTTPRequestHandler):
             if not post and path in ('/api/status','/auth/v1/health'):
                 with store.connect() as c: configured=bool(c.execute('SELECT 1 FROM users LIMIT 1').fetchone())
                 return self.send(200,dict(configured=configured,local=peer.is_loopback))
-            if post and path == '/api/setup': return self.send(200,dict(data=store.bootstrap(self.body(),peer.is_loopback),error=None))
+            if post and path == '/api/setup':
+                local_setup = peer.is_loopback and self.headers.get('Host', '').split(':')[0].lower() == 'localhost'
+                return self.send(200,dict(data=store.bootstrap(self.body(),local_setup),error=None))
             if post and path == '/api/login':
                 user, token = store.login(self.body(), self.client_address[0])
                 return self.send(200,dict(data=dict(user=user),error=None),cookie='notebook_session='+token+'; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=28800')
