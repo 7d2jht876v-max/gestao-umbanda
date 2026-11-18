@@ -414,6 +414,8 @@ class Handler(BaseHTTPRequestHandler):
         host = self.headers.get('Host', '').split(':')[0].lower()
         if host not in self.server.allowed_hosts: raise ApiError('Endereço não autorizado.', '403', 403)
     def public_request(self):
+        # Host is client-controlled. A public proxy that rewrites Host to localhost
+        # must not be used as a security boundary for this application.
         return self.headers.get('Host', '').split(':')[0].lower() not in self.server.local_hosts
     def body(self):
         if self.headers.get_content_type() != 'application/json' or self.headers.get('X-Notebook') != '1': raise ApiError('Requisição inválida.', '403', 403)
