@@ -416,7 +416,8 @@ class Handler(BaseHTTPRequestHandler):
     def body(self):
         if self.headers.get_content_type() != 'application/json' or self.headers.get('X-Notebook') != '1': raise ApiError('Requisição inválida.', '403', 403)
         origin = self.headers.get('Origin')
-        if origin and origin != 'https://' + self.headers.get('Host',''): raise ApiError('Origem não autorizada.', '403', 403)
+        if origin != 'https://' + self.headers.get('Host',''):
+            raise ApiError('Origem não autorizada.', '403', 403)
         size = int(self.headers.get('Content-Length', '0'))
         limit=MAX_BYTES+1048576 if urlsplit(self.path).path in ('/api/import','/api/table','/api/rpc') else 16384
         if not 1 <= size <= limit: raise ApiError('Requisição excede o tamanho permitido.', '413', 413)
