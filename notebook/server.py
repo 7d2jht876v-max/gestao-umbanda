@@ -413,6 +413,8 @@ class Handler(BaseHTTPRequestHandler):
     def check_host(self):
         host = self.headers.get('Host', '').split(':')[0].lower()
         if host not in self.server.allowed_hosts: raise ApiError('Endereço não autorizado.', '403', 403)
+    def public_request(self):
+        return self.headers.get('Host', '').split(':')[0].lower() not in self.server.local_hosts
     def body(self):
         if self.headers.get_content_type() != 'application/json' or self.headers.get('X-Notebook') != '1': raise ApiError('Requisição inválida.', '403', 403)
         origin = self.headers.get('Origin')
@@ -437,6 +439,8 @@ class Handler(BaseHTTPRequestHandler):
             if not post and path in ('/api/status','/auth/v1/health'):
                 with store.connect() as c: configured=bool(c.execute('SELECT 1 FROM users LIMIT 1').fetchone())
                 return self.send(200,dict(configured=configured,local=peer.is_loopback))
+            if self.public_request() and path in ('/gestao-notebook.html', '/configurar', '/api/setup', '/api/provision', '/api/export', '/api/import', '/api/reset-user', '/api/users'):
+                raise ApiError('Administração disponível somente no notebook ou na rede local.', '403', 403)
             if post and path == '/api/setup':
                 local_setup = peer.is_loopback and self.headers.get('Host', '').split(':')[0].lower() == 'localhost'
                 return self.send(200,dict(data=store.bootstrap(self.body(),local_setup),error=None))
@@ -452,6 +456,8 @@ class Handler(BaseHTTPRequestHandler):
                 if path == '/api/logout':
                     with store.connect() as c: c.execute('DELETE FROM sessions WHERE token=?',(hashlib.sha256(self.token().encode()).hexdigest(),))
                     return self.send(200,dict(data=None,error=None),cookie='notebook_session=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0')
+                if self.public_request() and user['role'] == 'admin':
+                    raise ApiError('Administração disponível somente no notebook ou na rede local.', '403', 403)
                 if path == '/api/table': result=store.table(user,args)
                 elif path == '/api/rpc': result=store.rpc(user,args['name'],args.get('args',{}))
                 elif path == '/api/provision': result=store.provision(user)
@@ -549,7 +555,11 @@ def main():
     server=Server(('0.0.0.0',args.port),Handler)
     server.socket=context.wrap_socket(server.socket,server_side=True)
     server.store=store
-    server.allowed_hosts={'localhost',socket.gethostname().lower(),*addresses()}
+    server.local_hosts={'localhost',socket.gethostname().lower(),*addresses()}
+    public_host=os.environ.get('GESTAO_PUBLIC_HOST', '').strip().lower()
+    if public_host and (':' in public_host or '/' in public_host or not public_host.endswith('.ts.net')):
+        raise SystemExit('GESTAO_PUBLIC_HOST deve ser somente um hostname .ts.net, sem https:// ou porta.')
+    server.allowed_hosts=server.local_hosts | ({public_host} if public_host else set())
     print('\nGESTÃO UMBANDA — SERVIDOR DO NOTEBOOK\nMantenha esta janela aberta. Ctrl+C para encerrar.\n')
     print('No notebook: https://localhost:'+str(args.port)+'/configurar')
     print('Código de configuração inicial: '+store.setup_code)
