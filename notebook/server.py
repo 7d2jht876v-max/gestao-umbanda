@@ -414,9 +414,8 @@ class Handler(BaseHTTPRequestHandler):
         host = self.headers.get('Host', '').split(':')[0].lower()
         if host not in self.server.allowed_hosts: raise ApiError('Endereço não autorizado.', '403', 403)
     def public_request(self):
-        # Host is client-controlled. A public proxy that rewrites Host to localhost
-        # must not be used as a security boundary for this application.
-        return self.headers.get('Host', '').split(':')[0].lower() not in self.server.local_hosts
+        # A dedicated listener determines public access, never the untrusted Host header.
+        return bool(self.server.public_listener)
     def body(self):
         if self.headers.get_content_type() != 'application/json' or self.headers.get('X-Notebook') != '1': raise ApiError('Requisição inválida.', '403', 403)
         origin = self.headers.get('Origin')
@@ -554,6 +553,7 @@ def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--data',default=str(HERE/'dados'))
     parser.add_argument('--port',type=int,default=8787)
+    parser.add_argument('--public-port',type=int,default=0,help='Dedicated loopback HTTPS listener for a reviewed public proxy; disabled by default')
     args=parser.parse_args()
     store=Store(args.data)
     certs=Path(args.data)/'certificados'
@@ -568,7 +568,19 @@ def main():
     public_host=os.environ.get('GESTAO_PUBLIC_HOST', '').strip().lower()
     if public_host and (':' in public_host or '/' in public_host or not public_host.endswith('.ts.net')):
         raise SystemExit('GESTAO_PUBLIC_HOST deve ser somente um hostname .ts.net, sem https:// ou porta.')
-    server.allowed_hosts=server.local_hosts | ({public_host} if public_host else set())
+    server.allowed_hosts=server.local_hosts
+    server.public_listener=False
+    if args.public_port:
+        if not public_host or args.public_port == args.port:
+            raise SystemExit('Configure GESTAO_PUBLIC_HOST e uma porta pública distinta da porta local.')
+        public_server=Server(('127.0.0.1',args.public_port),Handler)
+        public_server.socket=context.wrap_socket(public_server.socket,server_side=True)
+        public_server.store=store
+        public_server.local_hosts=set()
+        public_server.allowed_hosts={public_host}
+        public_server.public_listener=True
+        threading.Thread(target=public_server.serve_forever,daemon=True).start()
+        print('Listener público isolado: https://127.0.0.1:'+str(args.public_port)+' (somente proxy local)')
     print('\nGESTÃO UMBANDA — SERVIDOR DO NOTEBOOK\nMantenha esta janela aberta. Ctrl+C para encerrar.\n')
     print('No notebook: https://localhost:'+str(args.port)+'/configurar')
     print('Código de configuração inicial: '+store.setup_code)
@@ -585,6 +597,10 @@ def main():
     threading.Thread(target=cleanup,daemon=True).start()
     try: server.serve_forever()
     except KeyboardInterrupt: print('\nEncerrando com os dados salvos.')
-    finally: server.server_close()
+    finally:
+        server.server_close()
+        if args.public_port:
+            public_server.shutdown()
+            public_server.server_close()
 
 if __name__=='__main__': main()
