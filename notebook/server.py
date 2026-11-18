@@ -446,9 +446,16 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200,dict(data=store.bootstrap(self.body(),local_setup),error=None))
             if post and path == '/api/login':
                 user, token = store.login(self.body(), self.client_address[0])
+                if self.public_request() and user['role'] == 'admin':
+                    with store.connect() as c:
+                        c.execute('DELETE FROM sessions WHERE token=?', (hashlib.sha256(token.encode()).hexdigest(),))
+                    raise ApiError('Conta administrativa disponível somente no notebook ou na rede local.', '403', 403)
                 return self.send(200,dict(data=dict(user=user),error=None),cookie='notebook_session='+token+'; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=28800')
             user = store.user(self.token())
-            if not post and path == '/api/session': return self.send(200,dict(data=dict(session=dict(user=user) if user else None),error=None))
+            if not post and path == '/api/session':
+                if self.public_request() and user and user['role'] == 'admin':
+                    user = None
+                return self.send(200,dict(data=dict(session=dict(user=user) if user else None),error=None))
             if path.startswith('/api/'):
                 if not user: raise ApiError('Entre com sua conta do servidor do notebook.', '401', 401)
                 if not post: raise ApiError('Método inválido.', '405', 405)
