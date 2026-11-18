@@ -107,13 +107,17 @@ class Store:
         return user
 
     def login(self, args, ip):
-        key = (ip, str(args.get('email', '')).strip().lower())
+        email = str(args.get('email', '')).strip().lower()
+        key = ('source', ip, email)
+        account_key = ('account', email)
         now = time.time()
         with self.lock:
             attempts = [t for t in self.failures.get(key, []) if t > now - 600]
-            if len(attempts) >= 5:
+            account_attempts = [t for t in self.failures.get(account_key, []) if t > now - 600]
+            if len(attempts) >= 5 or len(account_attempts) >= 5:
                 raise ApiError('Muitas tentativas. Aguarde 10 minutos.', '429', 429)
             self.failures[key] = attempts + [now]
+            self.failures[account_key] = account_attempts + [now]
             if len(self.failures) > 1000:
                 self.failures = {k: v for k, v in self.failures.items() if v[-1] > now - 600}
         with self.connect() as c:
@@ -127,6 +131,7 @@ class Store:
             c.execute('INSERT INTO sessions VALUES(?,?,?)', (hashlib.sha256(token.encode()).hexdigest(), row['id'], now + 28800))
         with self.lock:
             self.failures.pop(key, None)
+            self.failures.pop(account_key, None)
         return dict(id=row['id'], email=row['email'], role=row['role']), token
 
     def user(self, token):
