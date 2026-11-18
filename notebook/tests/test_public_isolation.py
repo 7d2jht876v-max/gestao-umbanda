@@ -26,7 +26,6 @@ class PublicIsolationTests(unittest.TestCase):
             self.handler(True).check_host()
 
     def test_local_listener_rejects_public_host(self):
-        from notebook.server import ApiError
         with self.assertRaises(ApiError):
             self.handler(False).check_host()
 
