@@ -1,10 +1,11 @@
 """Regressões de isolamento do acesso público. Executar: python -m unittest discover -s notebook/tests -v"""
 import unittest
 from types import SimpleNamespace
-from unittest.mock import Mock
-from http import HTTPStatus
+from pathlib import Path
+import sys
 
-from notebook.server import Handler
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from server import Handler, ApiError
 
 
 class PublicIsolationTests(unittest.TestCase):
@@ -21,7 +22,6 @@ class PublicIsolationTests(unittest.TestCase):
         self.assertFalse(self.handler(False).public_request())
 
     def test_public_listener_rejects_unapproved_host(self):
-        from notebook.server import ApiError
         with self.assertRaises(ApiError):
             self.handler(True).check_host()
 
