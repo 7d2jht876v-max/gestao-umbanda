@@ -468,7 +468,7 @@ class Handler(BaseHTTPRequestHandler):
                 else: raise ApiError('Operação não disponível.', '404',404)
                 return self.send(200,dict(data=result,error=None))
             if post: raise ApiError('Página não encontrada.', '404',404)
-            assets={'/':'index.html','/index.html':'index.html','/notebook-client.js':'notebook/notebook-client.js','/gestao-notebook.html':'notebook/manage.html','/manifest.webmanifest':'manifest.webmanifest','/install.js':'install.js','/baralho-cigano.html':'baralho-cigano.html','/configurar':'notebook/manage.html'}
+            assets={'/offline-worker.js':'notebook/offline-worker.js','/':'index.html','/index.html':'index.html','/notebook-client.js':'notebook/notebook-client.js','/gestao-notebook.html':'notebook/manage.html','/manifest.webmanifest':'manifest.webmanifest','/install.js':'install.js','/baralho-cigano.html':'baralho-cigano.html','/configurar':'notebook/manage.html'}
             if path.startswith('/icons/') and Path(path).name in {'icon-192.png','icon-1024.png','icon-512.png','apple-touch-icon.png'}: asset=path[1:]
             elif path in assets: asset=assets[path]
             else: raise ApiError('Página não encontrada.', '404',404)

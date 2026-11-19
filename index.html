@@ -1494,11 +1494,63 @@ function toggleNotebookConnection(){
  }
  guide.hidden=!guide.hidden;if(!guide.hidden)guide.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
-async function refresh(){try{if(recovering){showRecoveryForm();return;}const {data:{user},error}=await accessTimeout(client.auth.getUser());if(error||!user){role=null;msg('Entre com seu e-mail e senha cadastrados no Supabase. Os dados atuais permanecem no iPhone.');formLogin();return;}
+const offlineKey='notebook-offline-admin-v1';
+let offlineOwner=null, probing=false;
+function offlineGrant(){
+ try{return JSON.parse(window.localStorage.getItem(offlineKey));}catch{return null;}
+}
+function openLocalCopy(){
+ const grant=localNotebookSync&&offlineGrant();
+ if(!grant||grant.until<Date.now())return false;
+ offlineOwner=grant.id;role='offline';setAccess(true);
+ msg('Modo offline. Alterações salvas neste aparelho aguardam o notebook.');
+ controls.innerHTML='<button id="offline-lock">Sair deste aparelho</button>';
+ controls.querySelector('button').onclick=logout;
+ return true;
+}
+async function reconnectLocalCopy(){
+ if(!offlineOwner||probing||document.hidden||window.GESTAO_UNSAVED_FORM)return;
+ probing=true;
+ try{
+  const result=await notebookAPI('/api/session',undefined,AbortSignal.timeout(3500));
+  if(result.error?.code==='NETWORK')return;
+  const user=result.data?.session?.user;
+  if(user?.id!==offlineOwner||user?.role!=='admin'){
+   offlineOwner=null;role=null;setAccess(false);window.localStorage.removeItem(offlineKey);
+   msg('Entre novamente com a conta que preparou este aparelho.');formLogin();return;
+  }
+  offlineOwner=null;await refresh();
+ }finally{probing=false;}
+}
+function offerOffline(user){
+ const button=document.createElement('button');
+ button.textContent='Preparar acesso offline neste aparelho pessoal';
+ controls.append(button);
+ button.onclick=async()=>{
+  button.disabled=true;
+  try{
+   if(!navigator.serviceWorker)throw Error('Abra o endereço HTTPS do notebook.');
+   const registration=await navigator.serviceWorker.register('/offline-worker.js');
+   const worker=registration.installing||registration.waiting||registration.active;
+   if(!worker)throw Error('Tente preparar novamente.');
+   await new Promise((resolve,reject)=>{
+    function check(){
+     if(worker.state==='activated'){worker.removeEventListener('statechange',check);resolve();}
+     if(worker.state==='redundant'){worker.removeEventListener('statechange',check);reject(Error('Falha ao baixar o aplicativo.'));}
+    }
+    worker.addEventListener('statechange',check);check();
+   });
+   window.localStorage.setItem(offlineKey,JSON.stringify({id:user.id,until:Date.now()+7*86400000}));
+   msg('Acesso offline preparado por 7 dias. Sincronize para receber os registros do notebook.');
+  }catch(error){msg(errorText(error));}finally{button.disabled=false;}
+ };
+}
+async function refresh(){try{if(recovering){showRecoveryForm();return;}const {data:{user},error}=await accessTimeout(client.auth.getUser());if(error?.code==='NETWORK'&&openLocalCopy())return;if(localNotebookSync&&!error&&(!user||offlineGrant()?.id!==user.id))window.localStorage.removeItem(offlineKey);if(error||!user){role=null;msg('Entre com seu e-mail e senha cadastrados no Supabase. Os dados atuais permanecem no iPhone.');formLogin();return;}
 const result=await accessTimeout(client.from('perfis').select('perfil').eq('id',user.id).single());if(result.error){role=null;msg('Login realizado, mas o perfil não foi encontrado: '+errorText(result.error));controls.innerHTML='<button id="cloud-out">Sair</button>';root.querySelector('#cloud-out').onclick=logout;return;}
-role=result.data.perfil;if(role!=='admin'){await showMediumPortal();return;}setAccess(true);msg(localNotebookSync?'Conectado: '+user.email+' • Administrador. Use Sincronizar para atualizar o iPhone e o notebook.':'Conectado: '+user.email+' • Sincronização em nuvem DESATIVADA. Cadastros e anexos continuam salvos neste aparelho. Para sincronizar, abra o aplicativo pelo endereço HTTPS do notebook na mesma rede Wi-Fi.');
+role=result.data.perfil;if(role!=='admin'){if(localNotebookSync)window.localStorage.removeItem(offlineKey);await showMediumPortal();return;}setAccess(true);msg(localNotebookSync?'Conectado: '+user.email+' • Administrador. Use Sincronizar para atualizar o iPhone e o notebook.':'Conectado: '+user.email+' • Sincronização em nuvem DESATIVADA. Cadastros e anexos continuam salvos neste aparelho. Para sincronizar, abra o aplicativo pelo endereço HTTPS do notebook na mesma rede Wi-Fi.');
 controls.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap"><button id="medium-publish">Publicar dados individuais dos médiuns</button><button id="medium-provision">Cadastrar acessos com senha padrão</button><button id="cloud-device-sync">🔄 Sincronizar notebook e iPhone</button><button id="cloud-out" style="background:#666">Sair</button></div>';
 root.querySelector('#cloud-out').onclick=logout;
+if(localNotebookSync)offerOffline(user);
 root.querySelector('#cloud-device-sync').onclick=()=>localNotebookSync?void synchronizeDevices(true,true):toggleNotebookConnection();
 root.querySelector('#medium-publish').onclick=publishMediumData;
 if(!localNotebookSync){
@@ -1541,7 +1593,7 @@ generate.onclick=generateInstallLink;
 copy.onclick=async()=>{try{if(!navigator.clipboard?.writeText)throw Error('Cópia manual');await navigator.clipboard.writeText(field.value);feedback.textContent='Link copiado!';}catch{field.focus();field.select();field.setSelectionRange(0,field.value.length);feedback.textContent='Link selecionado. Toque e segure no campo e escolha Copiar.';}};
 share.append(heading,generate,label,field,copy,link,feedback);controls.append(share);generateInstallLink();
 
-void synchronizeDevices(false);
+void synchronizeDevices(!!localStorage.getItem(localKey+'-auto-sync-pending'));
 }catch(error){role=null;setAccess(false);msg(errorText(error));controls.innerHTML='<button id="retry-access">Tentar verificar acesso novamente</button>';root.querySelector('#retry-access').onclick=()=>{msg('Verificando acesso…');void refresh();};}
 }
 function syncCanonical(value){
@@ -1743,9 +1795,8 @@ async function synchronizeDevices(push=false,manual=false){
    const writtenVersion=await partRPC('concluir_gestao_delta',{upload_id:transfer.id});
    localStorage.removeItem(uploadKey);
    if(writtenVersion)row={...(row||{}),atualizado_em:writtenVersion};
-   if(pendingAtStart&&localStorage.getItem(localKey+'-auto-sync-pending')===pendingAtStart)localStorage.removeItem(localKey+'-auto-sync-pending');
   }
-  if(push&&pendingAtStart&&localStorage.getItem(localKey+'-auto-sync-pending')===pendingAtStart)localStorage.removeItem(localKey+'-auto-sync-pending');
+  
   const latest=JSON.parse(localStorage.getItem(localKey)||'{}');
   if(local._sync_financial_status){latest._sync_financial_status={};for(const suffix of Object.keys(local._sync_financial_status)){try{latest._sync_financial_status[suffix]=JSON.parse(localStorage.getItem(localKey+suffix)||'{}')}catch{}}}
   const applied=mergeDeviceData(merged.data,latest,local).data;
@@ -1763,6 +1814,8 @@ async function synchronizeDevices(push=false,manual=false){
   if(row?.atualizado_em)localStorage.setItem(versionKey,row.atualizado_em);
   if(push){
    if(window.GESTAO_STORAGE_FLUSH)await bounded(window.GESTAO_STORAGE_FLUSH(),'A gravação neste aparelho');
+   if(push&&pendingAtStart&&localStorage.getItem(localKey+'-auto-sync-pending')===pendingAtStart)localStorage.removeItem(localKey+'-auto-sync-pending');
+   if(window.GESTAO_STORAGE_FLUSH)await window.GESTAO_STORAGE_FLUSH();
    msg('Cadastros enviados. Finalizando fichas de radiestesia…');
    let radioPending=false;
    if(window.GESTAO_RADIO_SYNC)try{await bounded(window.GESTAO_RADIO_SYNC(),'A sincronização da radiestesia',15000);}catch{radioPending=true;}
@@ -1775,7 +1828,7 @@ async function synchronizeDevices(push=false,manual=false){
 }
  finally{deviceSyncBusy=false;if(button)button.disabled=false;}
 }
-function resumeDeviceSync(){if(!document.hidden&&!window.GESTAO_UNSAVED_FORM)void synchronizeDevices(!!localStorage.getItem(localKey+'-auto-sync-pending'));}
+function resumeDeviceSync(){if(offlineOwner){void reconnectLocalCopy();return;}if(!document.hidden&&!window.GESTAO_UNSAVED_FORM)void synchronizeDevices(!!localStorage.getItem(localKey+'-auto-sync-pending'));}
 setInterval(resumeDeviceSync,15000);
 document.addEventListener('visibilitychange',resumeDeviceSync);
 let autoSyncTimer;
@@ -1808,7 +1861,7 @@ async function recoverFoundData(){
  feedback.textContent=detail.result.added?detail.result.added+' registro(s) recuperado(s) neste aparelho. Os dados que já estavam salvos foram mantidos.':'Os registros encontrados já estão disponíveis neste aparelho.';
  }catch(error){feedback.textContent='Recuperação pendente: '+error.message;}
 }
-async function logout(){setAccess(false);await client.auth.signOut();await refresh()}
+async function logout(){offlineOwner=null;role=null;if(localNotebookSync)window.localStorage.removeItem(offlineKey);setAccess(false);await client.auth.signOut();await refresh()}
 async function load(){msg('Consultando nuvem…');const {data:row,error}=await client.from('gestao_dados').select('conteudo,atualizado_em').eq('id','templo').maybeSingle();if(error){msg('Falha ao consultar. Execute o SQL de configuração: '+errorText(error));return;}if(!row){msg('Ainda não há dados na nuvem. O administrador deve enviar um backup.');return;}if(!confirm('Substituir os dados deste aparelho pelos dados da nuvem? Faça um backup local antes.')){await refresh();return;}localStorage.setItem(localKey,JSON.stringify(row.conteudo));location.reload()}
 async function upload(){
  if(role!=='admin')return;

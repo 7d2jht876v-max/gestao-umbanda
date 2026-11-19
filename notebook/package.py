@@ -8,7 +8,7 @@ with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED) as z:
         z.write(ROOT/'notebook'/name,'Gestao-Umbanda-Notebook/'+name)
     for name in ['index.html','manifest.webmanifest','install.js','baralho-cigano.html']:
         z.write(ROOT/name,'Gestao-Umbanda-Notebook/web/'+name)
-    for name in ['notebook-client.js','manage.html']:
+    for name in ['notebook-client.js','manage.html','offline-worker.js']:
         z.write(ROOT/'notebook'/name,'Gestao-Umbanda-Notebook/web/notebook/'+name)
     for p in (ROOT/'icons').glob('*.png'):
         z.write(p,'Gestao-Umbanda-Notebook/web/icons/'+p.name)

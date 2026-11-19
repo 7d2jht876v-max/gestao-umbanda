@@ -28,7 +28,7 @@ class Rpc{
 }
 const auth={
  async getSession(){
-  const result=await notebookAPI('/api/session');
+  const result=await notebookAPI('/api/session',undefined,AbortSignal.timeout(5000));
   return {data:{session:result?.data?.session||null},error:result?.error||null};
  },
  async getUser(){const result=await this.getSession();return {data:{user:result.data?.session?.user||null},error:result.error};},
