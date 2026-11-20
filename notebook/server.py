@@ -107,13 +107,17 @@ class Store:
         return user
 
     def login(self, args, ip):
-        key = (ip, str(args.get('email', '')).strip().lower())
+        email = str(args.get('email', '')).strip().lower()
+        key = ('source', ip, email)
+        account_key = ('account', email)
         now = time.time()
         with self.lock:
             attempts = [t for t in self.failures.get(key, []) if t > now - 600]
-            if len(attempts) >= 5:
+            account_attempts = [t for t in self.failures.get(account_key, []) if t > now - 600]
+            if len(attempts) >= 5 or len(account_attempts) >= 5:
                 raise ApiError('Muitas tentativas. Aguarde 10 minutos.', '429', 429)
             self.failures[key] = attempts + [now]
+            self.failures[account_key] = account_attempts + [now]
             if len(self.failures) > 1000:
                 self.failures = {k: v for k, v in self.failures.items() if v[-1] > now - 600}
         with self.connect() as c:
@@ -127,6 +131,7 @@ class Store:
             c.execute('INSERT INTO sessions VALUES(?,?,?)', (hashlib.sha256(token.encode()).hexdigest(), row['id'], now + 28800))
         with self.lock:
             self.failures.pop(key, None)
+            self.failures.pop(account_key, None)
         return dict(id=row['id'], email=row['email'], role=row['role']), token
 
     def user(self, token):
@@ -408,10 +413,14 @@ class Handler(BaseHTTPRequestHandler):
     def check_host(self):
         host = self.headers.get('Host', '').split(':')[0].lower()
         if host not in self.server.allowed_hosts: raise ApiError('Endereço não autorizado.', '403', 403)
+    def public_request(self):
+        # A dedicated listener determines public access, never the untrusted Host header.
+        return bool(self.server.public_listener)
     def body(self):
         if self.headers.get_content_type() != 'application/json' or self.headers.get('X-Notebook') != '1': raise ApiError('Requisição inválida.', '403', 403)
         origin = self.headers.get('Origin')
-        if origin and origin != 'https://' + self.headers.get('Host',''): raise ApiError('Origem não autorizada.', '403', 403)
+        if origin != 'https://' + self.headers.get('Host',''):
+            raise ApiError('Origem não autorizada.', '403', 403)
         size = int(self.headers.get('Content-Length', '0'))
         limit=MAX_BYTES+1048576 if urlsplit(self.path).path in ('/api/import','/api/table','/api/rpc') else 16384
         if not 1 <= size <= limit: raise ApiError('Requisição excede o tamanho permitido.', '413', 413)
@@ -431,12 +440,23 @@ class Handler(BaseHTTPRequestHandler):
             if not post and path in ('/api/status','/auth/v1/health'):
                 with store.connect() as c: configured=bool(c.execute('SELECT 1 FROM users LIMIT 1').fetchone())
                 return self.send(200,dict(configured=configured,local=peer.is_loopback))
-            if post and path == '/api/setup': return self.send(200,dict(data=store.bootstrap(self.body(),peer.is_loopback),error=None))
+            if self.public_request() and path in ('/gestao-notebook.html', '/configurar', '/api/setup', '/api/provision', '/api/export', '/api/import', '/api/reset-user', '/api/users'):
+                raise ApiError('Administração disponível somente no notebook ou na rede local.', '403', 403)
+            if post and path == '/api/setup':
+                local_setup = peer.is_loopback and self.headers.get('Host', '').split(':')[0].lower() == 'localhost'
+                return self.send(200,dict(data=store.bootstrap(self.body(),local_setup),error=None))
             if post and path == '/api/login':
                 user, token = store.login(self.body(), self.client_address[0])
+                if self.public_request() and user['role'] == 'admin':
+                    with store.connect() as c:
+                        c.execute('DELETE FROM sessions WHERE token=?', (hashlib.sha256(token.encode()).hexdigest(),))
+                    raise ApiError('Conta administrativa disponível somente no notebook ou na rede local.', '403', 403)
                 return self.send(200,dict(data=dict(user=user),error=None),cookie='notebook_session='+token+'; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=28800')
             user = store.user(self.token())
-            if not post and path == '/api/session': return self.send(200,dict(data=dict(session=dict(user=user) if user else None),error=None))
+            if not post and path == '/api/session':
+                if self.public_request() and user and user['role'] == 'admin':
+                    user = None
+                return self.send(200,dict(data=dict(session=dict(user=user) if user else None),error=None))
             if path.startswith('/api/'):
                 if not user: raise ApiError('Entre com sua conta do servidor do notebook.', '401', 401)
                 if not post: raise ApiError('Método inválido.', '405', 405)
@@ -444,6 +464,8 @@ class Handler(BaseHTTPRequestHandler):
                 if path == '/api/logout':
                     with store.connect() as c: c.execute('DELETE FROM sessions WHERE token=?',(hashlib.sha256(self.token().encode()).hexdigest(),))
                     return self.send(200,dict(data=None,error=None),cookie='notebook_session=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0')
+                if self.public_request() and user['role'] == 'admin':
+                    raise ApiError('Administração disponível somente no notebook ou na rede local.', '403', 403)
                 if path == '/api/table': result=store.table(user,args)
                 elif path == '/api/rpc': result=store.rpc(user,args['name'],args.get('args',{}))
                 elif path == '/api/provision': result=store.provision(user)
@@ -531,6 +553,7 @@ def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--data',default=str(HERE/'dados'))
     parser.add_argument('--port',type=int,default=8787)
+    parser.add_argument('--public-port',type=int,default=0,help='Dedicated loopback HTTPS listener for a reviewed public proxy; disabled by default')
     args=parser.parse_args()
     store=Store(args.data)
     certs=Path(args.data)/'certificados'
@@ -541,7 +564,23 @@ def main():
     server=Server(('0.0.0.0',args.port),Handler)
     server.socket=context.wrap_socket(server.socket,server_side=True)
     server.store=store
-    server.allowed_hosts={'localhost',socket.gethostname().lower(),*addresses()}
+    server.local_hosts={'localhost',socket.gethostname().lower(),*addresses()}
+    public_host=os.environ.get('GESTAO_PUBLIC_HOST', '').strip().lower()
+    if public_host and (':' in public_host or '/' in public_host or not public_host.endswith('.ts.net')):
+        raise SystemExit('GESTAO_PUBLIC_HOST deve ser somente um hostname .ts.net, sem https:// ou porta.')
+    server.allowed_hosts=server.local_hosts
+    server.public_listener=False
+    if args.public_port:
+        if not public_host or args.public_port == args.port:
+            raise SystemExit('Configure GESTAO_PUBLIC_HOST e uma porta pública distinta da porta local.')
+        public_server=Server(('127.0.0.1',args.public_port),Handler)
+        public_server.socket=context.wrap_socket(public_server.socket,server_side=True)
+        public_server.store=store
+        public_server.local_hosts=set()
+        public_server.allowed_hosts={public_host}
+        public_server.public_listener=True
+        threading.Thread(target=public_server.serve_forever,daemon=True).start()
+        print('Listener público isolado: https://127.0.0.1:'+str(args.public_port)+' (somente proxy local)')
     print('\nGESTÃO UMBANDA — SERVIDOR DO NOTEBOOK\nMantenha esta janela aberta. Ctrl+C para encerrar.\n')
     print('No notebook: https://localhost:'+str(args.port)+'/configurar')
     print('Código de configuração inicial: '+store.setup_code)
@@ -558,6 +597,10 @@ def main():
     threading.Thread(target=cleanup,daemon=True).start()
     try: server.serve_forever()
     except KeyboardInterrupt: print('\nEncerrando com os dados salvos.')
-    finally: server.server_close()
+    finally:
+        server.server_close()
+        if args.public_port:
+            public_server.shutdown()
+            public_server.server_close()
 
 if __name__=='__main__': main()

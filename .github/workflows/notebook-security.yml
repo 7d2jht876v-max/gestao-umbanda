@@ -1,0 +1,41 @@
+name: Validar segurança do notebook 217
+
+on:
+  pull_request:
+    paths:
+      - 'notebook/server.py'
+      - 'notebook/tests/**'
+      - '.github/workflows/notebook-security.yml'
+  push:
+    branches:
+      - security/public-access-217
+
+permissions:
+  contents: read
+
+jobs:
+  notebook-security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obter código
+        uses: actions/checkout@v4
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verificar sintaxe do servidor
+        run: python -m py_compile notebook/server.py
+      - name: Executar testes de isolamento
+        run: python -m unittest discover -s notebook/tests -p 'test_*.py' -v
+      - name: Criar pacote ZIP após testes aprovados
+        run: |
+          mkdir -p pacote
+          cp notebook/server.py notebook/ATUALIZAR-217.cmd notebook/ATUALIZAR-217.ps1 notebook/ACESSO-PUBLICO-217.md pacote/
+          cd pacote
+          zip -q ../Gestao-Umbanda-217-Atualizacao-Segura.zip *
+      - name: Disponibilizar pacote para download
+        uses: actions/upload-artifact@v4
+        with:
+          name: Gestao-Umbanda-217-Atualizacao-Segura
+          path: Gestao-Umbanda-217-Atualizacao-Segura.zip
+          retention-days: 30
