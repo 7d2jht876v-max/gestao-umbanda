@@ -1536,7 +1536,7 @@ const field=document.createElement('textarea');field.id='medium-install-link';fi
 const copy=document.createElement('button');copy.type='button';copy.textContent='Copiar link';copy.style.marginRight='12px';
 const link=document.createElement('a');link.textContent='Abrir link de instalação';link.className='drive-link';
 const feedback=document.createElement('p');feedback.setAttribute('role','status');
-function generateInstallLink(){const url=new URL(location.pathname,location.origin);url.searchParams.set('v','217');url.searchParams.set('acesso','medium');field.value=url.href;link.href=url.href;feedback.textContent='Link pronto para copiar e enviar aos médiuns.';}
+function generateInstallLink(){const url=new URL(location.pathname,location.origin);url.searchParams.set('v','217.1');url.searchParams.set('acesso','medium');field.value=url.href;link.href=url.href;feedback.textContent='Link pronto para copiar e enviar aos médiuns.';}
 generate.onclick=generateInstallLink;
 copy.onclick=async()=>{try{if(!navigator.clipboard?.writeText)throw Error('Cópia manual');await navigator.clipboard.writeText(field.value);feedback.textContent='Link copiado!';}catch{field.focus();field.select();field.setSelectionRange(0,field.value.length);feedback.textContent='Link selecionado. Toque e segure no campo e escolha Copiar.';}};
 share.append(heading,generate,label,field,copy,link,feedback);controls.append(share);generateInstallLink();
