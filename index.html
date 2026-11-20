@@ -178,6 +178,9 @@ getItem(key){key=String(key);return managed(key)?(cache.get(key)??null):native.g
 setItem(key,value){key=String(key);value=String(value);if(!managed(key)){native.setItem(key,value);return;}const previous=cache.get(key);cache.set(key,value);
 const write=()=>new Promise((resolve,reject)=>{const tx=db.transaction('values','readwrite');tx.objectStore('values').put(value,key);tx.oncomplete=()=>{failure=null;document.getElementById('storage-error')?.remove();resolve();};tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);});
 tail=tail.catch(()=>{}).then(write).catch(error=>{if(cache.get(key)===value){if(previous===undefined)cache.delete(key);else cache.set(key,previous);}failure=error;showError(error);throw error;});tail.catch(()=>{});},
+removeItem(key){key=String(key);if(!managed(key)){native.removeItem(key);return;}const previous=cache.get(key);cache.delete(key);
+const erase=()=>new Promise((resolve,reject)=>{const tx=db.transaction('values','readwrite');tx.objectStore('values').delete(key);tx.oncomplete=()=>{failure=null;document.getElementById('storage-error')?.remove();resolve();};tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);});
+tail=tail.catch(()=>{}).then(erase).catch(error=>{if(!cache.has(key)&&previous!==undefined)cache.set(key,previous);failure=error;showError(error);throw error;});tail.catch(()=>{});},
 async flush(){await tail;if(failure)throw failure;}
 };
 window.GESTAO_STORAGE=storage;window.GESTAO_STORAGE_FLUSH=()=>storage.flush();
@@ -1645,8 +1648,14 @@ function syncRemoteFromIndex(seed,patch,index){
 
 let deviceSyncBusy=false;
 window.addEventListener('gestao-exclusao',()=>{const run=()=>{if(deviceSyncBusy){setTimeout(run,300);return;}void synchronizeDevices(true);};run();});
+function safeSyncRemoveItem(key){
+ if(typeof localStorage.removeItem==='function')return localStorage.removeItem(key);
+ // Fallback for storage adapters without removeItem: an empty value is treated as absent
+ // by the sync state readers, without clearing any application records.
+ return localStorage.setItem(key,'');
+}
 async function synchronizeDevices(push=false,manual=false){
- if(manual)localStorage.removeItem(localKey+'-sync-retry-after');
+ if(manual)safeSyncRemoveItem(localKey+'-sync-retry-after');
  if(Date.now()<Number(localStorage.getItem(localKey+'-sync-retry-after')||0))return;
  if(role!=='admin'||deviceSyncBusy||mediumPublishBusy||(!push&&window.GESTAO_UNSAVED_FORM))return;
  deviceSyncBusy=true;const pendingAtStart=localStorage.getItem(localKey+'-auto-sync-pending');const button=root.querySelector('#cloud-device-sync');
@@ -1737,11 +1746,12 @@ async function synchronizeDevices(push=false,manual=false){
    }
    msg('Todas as partes enviadas. Confirmando a gravação segura…');
    const writtenVersion=await partRPC('concluir_gestao_delta',{upload_id:transfer.id});
-   localStorage.removeItem(uploadKey);
+   safeSyncRemoveItem(uploadKey);
+   if(window.GESTAO_STORAGE_FLUSH)await window.GESTAO_STORAGE_FLUSH();
    if(writtenVersion)row={...(row||{}),atualizado_em:writtenVersion};
-   if(pendingAtStart&&localStorage.getItem(localKey+'-auto-sync-pending')===pendingAtStart)localStorage.removeItem(localKey+'-auto-sync-pending');
+   if(pendingAtStart&&localStorage.getItem(localKey+'-auto-sync-pending')===pendingAtStart)safeSyncRemoveItem(localKey+'-auto-sync-pending');
   }
-  if(push&&pendingAtStart&&localStorage.getItem(localKey+'-auto-sync-pending')===pendingAtStart)localStorage.removeItem(localKey+'-auto-sync-pending');
+  if(push&&pendingAtStart&&localStorage.getItem(localKey+'-auto-sync-pending')===pendingAtStart)safeSyncRemoveItem(localKey+'-auto-sync-pending');
   const latest=JSON.parse(localStorage.getItem(localKey)||'{}');
   if(local._sync_financial_status){latest._sync_financial_status={};for(const suffix of Object.keys(local._sync_financial_status)){try{latest._sync_financial_status[suffix]=JSON.parse(localStorage.getItem(localKey+suffix)||'{}')}catch{}}}
   const applied=mergeDeviceData(merged.data,latest,local).data;
@@ -1771,11 +1781,23 @@ async function synchronizeDevices(push=false,manual=false){
 }
  finally{deviceSyncBusy=false;if(button)button.disabled=false;}
 }
-function resumeDeviceSync(){if(!document.hidden&&!window.GESTAO_UNSAVED_FORM)void synchronizeDevices(!!localStorage.getItem(localKey+'-auto-sync-pending'));}
-setInterval(resumeDeviceSync,15000);
-document.addEventListener('visibilitychange',resumeDeviceSync);
+// Evita sincronizações repetidas que bloqueiam a interface no iPhone.
+// A sincronização manual permanece disponível; alterações pendentes não são descartadas.
 let autoSyncTimer;
-window.addEventListener('gestao-dados-salvos',()=>{clearTimeout(autoSyncTimer);autoSyncTimer=setTimeout(()=>{if(deviceSyncBusy){window.dispatchEvent(new Event('gestao-dados-salvos'));return;}void synchronizeDevices(true);},1800);});
+function resumeDeviceSync(){
+ if(document.hidden||deviceSyncBusy||mediumPublishBusy||window.GESTAO_UNSAVED_FORM)return;
+ if(!localStorage.getItem(localKey+'-auto-sync-pending'))return;
+ void synchronizeDevices(true);
+}
+setInterval(resumeDeviceSync,60000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)resumeDeviceSync();});
+window.addEventListener('gestao-dados-salvos',()=>{
+ clearTimeout(autoSyncTimer);
+ autoSyncTimer=setTimeout(()=>{
+  if(document.hidden||window.GESTAO_UNSAVED_FORM||deviceSyncBusy||mediumPublishBusy)return;
+  void synchronizeDevices(true);
+ },6000);
+});
 let autoSaveTimer;
 document.addEventListener('input',scheduleAutoSave);
 document.addEventListener('change',scheduleAutoSave);
