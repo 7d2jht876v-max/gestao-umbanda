@@ -1307,7 +1307,34 @@ const financeSummary=document.createElement('div');financeSummary.className='por
 const financeRows=Array.isArray(d.resumoFinanceiro)?d.resumoFinanceiro:[...ownFinance,...ownDues.map(row=>({...row,tipo:'Mensalidade',pagamento:row.status==='Pago'?'Sim':row.status==='Pendente'?'Não':''}))];
 
 const ownCamarinhas=Array.isArray(d.camarinhasResumo)?d.camarinhasResumo:[];
-if(ownCamarinhas.length){const detail=document.createElement('div');detail.className='portal-entry';const title=document.createElement('h4');title.textContent='Minhas camarinhas — resumo';detail.append(title);for(const item of ownCamarinhas){const card=document.createElement('div');card.className='medium-finance-item';card.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;margin:8px 0;';const heading=document.createElement('strong');heading.textContent=item.nome;const amount=document.createElement('strong');amount.textContent=currency(Number(item.pendente)||0);amount.style.whiteSpace='nowrap';card.append(heading,amount);detail.append(card);}financeSummary.append(detail);}
+if(ownCamarinhas.length){
+const detail=document.createElement('div');detail.className='portal-entry';
+const title=document.createElement('h4');title.textContent='Minhas Camarinhas – Resumo';title.style.cssText='background:#71310f;color:white;border-radius:12px;padding:12px;text-align:center';detail.append(title);
+const controls=document.createElement('div');controls.style.cssText='display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:12px 0;padding:10px;background:#fff3e3;border-radius:12px';
+const filterLabel=document.createElement('label');filterLabel.textContent='Filtro: ';filterLabel.style.fontWeight='bold';
+const filter=document.createElement('select');filter.setAttribute('aria-label','Filtrar camarinhas');
+[['all','Todas'],['pending','Apenas com pendência'],['paid','Apenas pagas'],...ownCamarinhas.map((x,i)=>['item-'+i,String(x.nome||'Camarinha '+(i+1))])].forEach(([v,t])=>filter.add(new Option(t,v)));
+filterLabel.append(filter);const search=document.createElement('input');search.type='search';search.placeholder='Buscar camarinha...';search.setAttribute('aria-label','Buscar camarinha');search.style.cssText='flex:1;min-width:150px;max-width:320px';controls.append(filterLabel,search);detail.append(controls);
+const list=document.createElement('div');detail.append(list);
+const renderCamarinhas=()=>{list.replaceChildren();let visible=0;
+ownCamarinhas.forEach((item,i)=>{const total=Number(item.valor)||0,paid=Number(item.pago)||0,pending=Number(item.pendente)||0;
+if(filter.value==='pending'&&pending<=0)return;
+if(filter.value==='paid'&&(total<=0||pending>0))return;
+if(filter.value.startsWith('item-')&&filter.value!=='item-'+i)return;
+if(!String(item.nome||'').toLocaleLowerCase('pt-BR').includes(search.value.trim().toLocaleLowerCase('pt-BR')))return;
+visible++;
+const card=document.createElement('div');card.className='medium-finance-item';card.style.cssText='display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:12px 16px;margin:8px 0;border:1px solid #925322;border-radius:14px;background:#fffaf5';
+const heading=document.createElement('strong');heading.textContent='⌂ '+String(item.nome||'Camarinha '+(i+1));heading.style.cssText='color:#5a2b12;min-width:130px';
+const amounts=document.createElement('div');amounts.style.cssText='display:flex;flex-direction:column;gap:3px';
+const amount=document.createElement('strong');amount.textContent=currency(total);amount.style.color='#51250e';
+const paidLine=document.createElement('span');paidLine.textContent='Pago: '+currency(paid);paidLine.style.color='#16702a';
+const pendingLine=document.createElement('span');pendingLine.textContent='Pendente: '+currency(pending);pendingLine.style.color='#b31919';
+amounts.append(amount,paidLine,pendingLine);card.append(heading,amounts);list.append(card);
+});
+if(!visible){const empty=document.createElement('p');empty.className='muted';empty.textContent='Nenhuma camarinha encontrada para este filtro.';list.append(empty);}
+};
+filter.addEventListener('change',renderCamarinhas);search.addEventListener('input',renderCamarinhas);renderCamarinhas();financeSummary.append(detail);
+}
 const categories=['Mensalidade','Sessão Exu','Sessão cigana','Sessão Cosme','Segurança do ano','Ancestrais','Camarinhas','Gastos loja'];
 const currentYear=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric'}).format(new Date());
 const yearLabel=document.createElement('label');yearLabel.textContent='Ano do resumo';
