@@ -1548,7 +1548,7 @@ return {email:m.email.trim().toLowerCase(),dados:{
 medium:m,
 tarefas:arr('🧹 Tarefas').filter(t=>match(t.medium)),
 sessoes:arr('📅 Sessões').filter(s=>s.responsavel==='Todos os médiuns'||match(s.responsavel)||(Array.isArray(s.presencas)&&s.presencas.some(p=>match(p.nome)))).map(s=>({...s,presencas:Array.isArray(s.presencas)?s.presencas.filter(p=>match(p.nome)):[]})),
-mensalidades:arr('🗓️ Mensalidades').filter(t=>match(t.medium)),
+mensalidades:(()=>{const rows=arr('🗓️ Mensalidades').filter(t=>match(t.medium));return rows.filter(row=>{const v=String(row.valor??'').trim().replace(/R\$/g,'').replace(/\s/g,'').replace(',','.');if(Number(v)!==0)return true;return !rows.some(other=>other!==row&&String(other.mes||'')===String(row.mes||'')&&Number(String(other.valor??'').trim().replace(/R\$/g,'').replace(/\s/g,'').replace(',','.'))>0);});})(),
 financeiro:arr('💰 Financeiro').filter(t=>match(t.medium)),
 ...mediumPortalExtras(source,m)
 },atualizado_em:new Date().toISOString()}
