@@ -1428,7 +1428,7 @@ msg('Conectado: '+user.email+' • Acesso individual para consulta dos seus dado
 }
 let mediumPublishBusy=false;
 async function publishMediumData(){
-if(!localNotebookSync){msg('Publicação na nuvem desativada. Os cadastros permanecem neste aparelho; use o servidor do notebook para publicar.');return;}
+// Publicação manual permitida ao administrador autenticado, inclusive no GitHub Pages.
 if(role!=='admin'||mediumPublishBusy||deviceSyncBusy)return;
 let source;try{source=JSON.parse(localStorage.getItem(localKey)||'{}')}catch{msg('Não foi possível ler os cadastros locais.');return}
 const meds=source['👥 Médiuns']||[];
@@ -1525,14 +1525,7 @@ controls.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap"><button id=
 root.querySelector('#cloud-out').onclick=logout;
 root.querySelector('#cloud-device-sync').onclick=()=>void synchronizeDevices(true,true);
 root.querySelector('#medium-publish').onclick=publishMediumData;
-if(!localNotebookSync){
- for(const selector of ['#medium-publish','#medium-provision']){
-  const control=root.querySelector(selector);
-  control.disabled=true;
-  control.title='Envio para a nuvem desativado. Use o aplicativo do servidor do notebook.';
- }
- root.querySelector('#cloud-device-sync').title='Preparar backup e conectar ao servidor local, sem usar a nuvem.';
-}
+// Controles de publicação permanecem disponíveis ao administrador autenticado.
 if(localNotebookSync&&new URLSearchParams(location.search).get('publicar')==='1'){
  const publishButton=root.querySelector('#medium-publish');
  publishButton.style.cssText='background:#ad6320;outline:3px solid #f1c56b;outline-offset:3px';
