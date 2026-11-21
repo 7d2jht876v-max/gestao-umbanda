@@ -486,7 +486,7 @@ const detail=event.detail;if(!detail?.records)return;
 if(window.GESTAO_UNSAVED_FORM){detail.result={ok:false,error:'Salve o formulário antes de sincronizar.'};return;}
 try{
  const next=detail.records;
- for(const [suffix,value] of Object.entries(next._sync_financial_status||{}))if(['_sessoes_exu_status_v1','_sessoes_cigana_status_v1','_financeiro_extra_status_v1'].includes(suffix))localStorage.setItem(KEY+suffix,JSON.stringify(value));
+ for(const [suffix,value] of Object.entries(next._sync_financial_status||{}))if(['_sessoes_exu_status_v1','_sessoes_cigana_status_v1','_financeiro_extra_status_v1','_camarinha_pagamentos_v1'].includes(suffix))localStorage.setItem(KEY+suffix,JSON.stringify(value));
  localStorage.setItem(KEY,JSON.stringify(next));data=next;if(!window.GESTAO_UNSAVED_FORM)render();detail.result={ok:true};
 }catch(error){detail.result={ok:false,error:error.message};}
 });
@@ -920,6 +920,37 @@ const categoryValueBoxes=()=>[...$('finance-medium-list').querySelectorAll('.fin
 const updateCategoryValueTotals=()=>categoryValueBoxes().forEach(box=>{let total=0,paid=0,pending=0;box.querySelectorAll('.finance-category-value').forEach(input=>{const amount=debtCents(input.value)||0;total+=amount;const status=input.closest('.finance-due-row').querySelector('select').value;if(status==='Pago')paid+=amount;else if(status==='Pendente')pending+=amount;});box.querySelector('.finance-category-value-total').textContent='Total: '+debtMoney(total)+' · Pago: '+debtMoney(paid)+' · Pendente: '+debtMoney(pending);});
 categoryValueBoxes().forEach(box=>{box.querySelectorAll('.finance-due-row').forEach(row=>{const select=row.querySelector('select'),config=categoryValueConfig(select),input=document.createElement('input');input.type='text';input.inputMode='decimal';input.className='finance-category-value';input.style.setProperty('width','125px','important');input.value=(Number(config.map['valor|'+config.key])||0).toFixed(2).replace('.',',');input.setAttribute('aria-label','Valor de '+select.getAttribute('aria-label'));input.placeholder='0,00';row.append(input);});const total=document.createElement('p');total.className='finance-category-value-total';total.setAttribute('aria-live','polite');box.append(total);});
 updateCategoryValueTotals();
+const camarinhaPaymentsKey=KEY+'_camarinha_pagamentos_v1';
+let camarinhaPayments={};try{camarinhaPayments=JSON.parse(localStorage.getItem(camarinhaPaymentsKey)||'{}')||{}}catch(e){}
+const saveCamarinhaPayments=()=>{localStorage.setItem(camarinhaPaymentsKey,JSON.stringify(camarinhaPayments));save();};
+const moneyBR=cents=>(cents/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const camarinhaRender=row=>{
+ const sel=row.querySelector('.finance-extra-status');if(!sel)return;
+ const key=sel.dataset.extraKey;const list=camarinhaPayments[key]||[];
+ let area=row.querySelector('.camarinha-payments');if(!area){area=document.createElement('div');area.className='camarinha-payments';area.style.cssText='width:100%;margin-top:9px;padding:10px;border:1px solid #d5c3b4;border-radius:10px;background:#fff';row.append(area);row.style.flexWrap='wrap';}
+ const total=list.reduce((n,p)=>n+(Number(p.cents)||0),0);
+ area.innerHTML='<button type="button" class="camarinha-add-payment" style="background:#70462d;color:white;margin-bottom:8px">+ Novo Pagamento</button><div class="camarinha-payment-list">'+list.map((p,i)=>'<div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin:6px 0"><span>'+esc(p.date.split('-').reverse().join('/'))+' — R$ '+moneyBR(p.cents)+'</span><button type="button" class="camarinha-delete-payment" data-index="'+i+'">Excluir</button></div>').join('')+'</div><strong>Total de pagamentos adicionais: R$ '+moneyBR(total)+'</strong>';
+};
+$('finance-medium-list').querySelectorAll('.finance-camarinha-values .finance-due-row').forEach(camarinhaRender);
+$('finance-medium-list').addEventListener('click',e=>{
+ const add=e.target.closest('.camarinha-add-payment'),del=e.target.closest('.camarinha-delete-payment');if(!add&&!del)return;
+ const row=e.target.closest('.finance-due-row'),key=row.querySelector('.finance-extra-status').dataset.extraKey;
+ if(add){
+  const area=row.querySelector('.camarinha-payments');if(area.querySelector('.camarinha-new-form'))return;
+  const form=document.createElement('div');form.className='camarinha-new-form';form.style.cssText='display:flex;gap:7px;flex-wrap:wrap;margin:8px 0';
+  form.innerHTML='<label>Data do pagamento <input type="date" class="camarinha-new-date" required></label><label>Valor (R$) <input type="text" inputmode="decimal" placeholder="0,00" class="camarinha-new-value" required></label><button type="button" class="camarinha-save-payment">Salvar pagamento</button>';
+  area.append(form);form.querySelector('.camarinha-new-date').value=new Date().toLocaleDateString('en-CA');return;
+ }
+ if(del){if(!confirm('Excluir este pagamento da camarinha?'))return;(camarinhaPayments[key]||[]).splice(Number(del.dataset.index),1);saveCamarinhaPayments();camarinhaRender(row);}
+});
+$('finance-medium-list').addEventListener('click',e=>{
+ if(!e.target.closest('.camarinha-save-payment'))return;
+ const row=e.target.closest('.finance-due-row'),form=row.querySelector('.camarinha-new-form');
+ const date=form.querySelector('.camarinha-new-date').value,amount=debtCents(form.querySelector('.camarinha-new-value').value);
+ if(!date||amount===null||amount<=0){alert('Informe uma data e um valor maior que zero.');return;}
+ const key=row.querySelector('.finance-extra-status').dataset.extraKey;
+ (camarinhaPayments[key]??=[]).push({date,cents:amount});saveCamarinhaPayments();camarinhaRender(row);
+});
 $('finance-medium-list').addEventListener('change',e=>{const input=e.target.closest('.finance-category-value');if(input){const amount=debtCents(input.value);if(amount===null){input.setCustomValidity('Informe um valor positivo, como 90,00.');input.reportValidity();return;}input.setCustomValidity('');const config=categoryValueConfig(input.closest('.finance-due-row').querySelector('select'));config.map['valor|'+config.key]=amount/100;localStorage.setItem(config.storage,JSON.stringify(config.map));input.value=(amount/100).toFixed(2).replace('.',',');}if(input||e.target.matches('.finance-exu-status,.finance-cigana-status,.finance-extra-status'))queueMicrotask(updateCategoryValueTotals);});
 
 const updateDuesTotals=()=>{$('finance-medium-list').querySelectorAll('.finance-year-months').forEach(box=>{let total=0,paid=0,pending=0;box.querySelectorAll('.finance-due-row').forEach(line=>{const amount=debtCents(line.querySelector('.finance-due-value').value)||0;total+=amount;const status=line.querySelector('.finance-due-status').value;if(status==='Pago')paid+=amount;else if(status==='Pendente')pending+=amount;});box.querySelector('.finance-dues-total').textContent='Total do ano: '+debtMoney(total)+' · Pago: '+debtMoney(paid)+' · Pendente: '+debtMoney(pending);});};
@@ -1715,7 +1746,7 @@ async function synchronizeDevices(push=false,manual=false){
   }
   const remote=row?.conteudo||{},local=JSON.parse(localStorage.getItem(localKey)||'{}');
   const aux={};
-  for(const suffix of ['_sessoes_exu_status_v1','_sessoes_cigana_status_v1','_financeiro_extra_status_v1']){
+  for(const suffix of ['_sessoes_exu_status_v1','_sessoes_cigana_status_v1','_financeiro_extra_status_v1','_camarinha_pagamentos_v1']){
    const stored=localStorage.getItem(localKey+suffix);if(stored)try{aux[suffix]=JSON.parse(stored)}catch{}
   }
   if(Object.keys(aux).length)local._sync_financial_status=aux;
@@ -1767,7 +1798,7 @@ async function synchronizeDevices(push=false,manual=false){
    const detail={records:applied,result:null};window.dispatchEvent(new CustomEvent('gestao-aplicar-sincronizacao',{detail}));
    if(!detail.result?.ok)throw Error(detail.result?.error||'Não foi possível atualizar os dados deste aparelho.');
    for(const [suffix,value] of Object.entries(applied._sync_financial_status||{})){
-    if(['_sessoes_exu_status_v1','_sessoes_cigana_status_v1','_financeiro_extra_status_v1'].includes(suffix))localStorage.setItem(localKey+suffix,JSON.stringify(value));
+    if(['_sessoes_exu_status_v1','_sessoes_cigana_status_v1','_financeiro_extra_status_v1','_camarinha_pagamentos_v1'].includes(suffix))localStorage.setItem(localKey+suffix,JSON.stringify(value));
    }
   }
   localStorage.setItem(baseKey,JSON.stringify(push?merged.data:remote));
