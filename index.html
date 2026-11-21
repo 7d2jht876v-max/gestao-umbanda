@@ -937,14 +937,14 @@ $('finance-medium-list').addEventListener('input',event=>{
   if(!field.isConnected)return;
   const cents=debtCents(field.value);
   if(cents===null)return; // não gravar números incompletos
-  field.dispatchEvent(new Event('change',{bubbles:false}));
+  field.dispatchEvent(new Event('change',{bubbles:true}));
  },650);
 });
 $('finance-medium-list').addEventListener('focusout',event=>{
  const field=event.target;
  if(!field.matches('.finance-due-value'))return;
  clearTimeout(financeDueTypingTimer);
- if(debtCents(field.value)!==null)field.dispatchEvent(new Event('change',{bubbles:false}));
+ if(debtCents(field.value)!==null)field.dispatchEvent(new Event('change',{bubbles:true}));
 });
 
 const mediumCategoryAmounts=box=>{
