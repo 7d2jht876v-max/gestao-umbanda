@@ -307,7 +307,8 @@ const category=value=>({'Sessão de Exu':'Sessão Exu','Sessão de Cosme':'Sess�
 const period=row=>/^\d{4}-\d{2}$/.test(String(row.mes||''))?String(row.mes):String(row.data||'').slice(0,7);
 const identity=row=>category(row.tipo)+'|'+String(row.medium||'').trim().toLocaleLowerCase('pt-BR')+'|'+period(row);
 const controlled=new Set(controls.map(identity));
-return controls.map(row=>({...row,tipo:category(row.tipo)})).concat((records['💰 Financeiro']||[]).map(row=>({...row,tipo:category(row.tipo)})).filter(row=>!controlled.has(identity(row))));
+const additional=(()=>{let saved={};try{saved=JSON.parse(storage.getItem(key+'_camarinha_pagamentos_v1')||'{}')||{}}catch(e){}const rows=[];for(const [id,payments] of Object.entries(saved)){if(!Array.isArray(payments))continue;const marker='|Camarinha|',at=id.lastIndexOf(marker);if(at<0)continue;const medium=id.slice(0,at);for(const payment of payments){const cents=Number(payment?.cents),date=String(payment?.date||'');if(!Number.isFinite(cents)||cents<=0||!/^\\d{4}-\\d{2}-\\d{2}$/.test(date))continue;rows.push({tipo:'Camarinhas',medium,mes:date.slice(0,7),data:date,valor:cents/100,pagamento:'Sim',descricao:'Pagamento adicional '+id.slice(at+marker.length)});}}return rows;})();
+return controls.map(row=>({...row,tipo:category(row.tipo)})).concat((records['💰 Financeiro']||[]).map(row=>({...row,tipo:category(row.tipo)})).filter(row=>!controlled.has(identity(row))),additional);
 }
 
 
