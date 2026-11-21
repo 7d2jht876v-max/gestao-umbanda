@@ -25,9 +25,9 @@ jobs:
       - name: Verificar configuracao SSH
         env:
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          SSH_HOST: ${{ secrets.DEPLOY_HOST }}
-          SSH_USER: ${{ secrets.DEPLOY_USER }}
-          SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          SSH_HOST: ${{ secrets.DEPLOY_HOST || secrets.DEPLOY_SSH_HOST || secrets.VPS_HOST }}
+          SSH_USER: ${{ secrets.DEPLOY_USER || secrets.DEPLOY_SSH_USER }}
+          SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS || secrets.DEPLOY_SSH_KNOWN_HOSTS }}
         run: |
           for name in SSH_KEY SSH_HOST SSH_USER SSH_KNOWN_HOSTS; do
             if [ -z "${!name}" ]; then
@@ -58,8 +58,8 @@ jobs:
           fi
       - name: Publicar pelo implantador seguro do servidor
         env:
-          SSH_HOST: ${{ secrets.DEPLOY_HOST }}
-          SSH_USER: ${{ secrets.DEPLOY_USER }}
+          SSH_HOST: ${{ secrets.DEPLOY_HOST || secrets.DEPLOY_SSH_HOST || secrets.VPS_HOST }}
+          SSH_USER: ${{ secrets.DEPLOY_USER || secrets.DEPLOY_SSH_USER }}
         run: |
           ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_USER@$SSH_HOST" \
             "sudo -n /usr/local/sbin/gestao-umbanda-deploy '${GITHUB_SHA}'"
