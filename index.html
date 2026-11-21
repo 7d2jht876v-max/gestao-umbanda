@@ -1242,6 +1242,7 @@ const pick=(row,keys)=>Object.fromEntries(keys.filter(k=>row[k]!==undefined).map
 const shared=(tab,keys)=>arr(tab).map(r=>pick(r,keys));
 return {
 resumoFinanceiro:dashboardFinanceSourceRows(source,localStorage,localKey).filter(own),
+camarinhasResumo:(()=>{const statusKey=localKey+'_financeiro_extra_status_v1',paymentsKey=localKey+'_camarinha_pagamentos_v1';let statuses={},payments={};try{statuses=JSON.parse(localStorage.getItem(statusKey)||'{}')||{}}catch(e){}try{payments=JSON.parse(localStorage.getItem(paymentsKey)||'{}')||{}}catch(e){}return Array.from({length:9},(_,i)=>{const label='Camarinha '+(i+1),id=name+'|Camarinha|'+label,base=Math.max(0,Math.round((Number(statuses['valor|'+id])||0)*100)),list=Array.isArray(payments[id])?payments[id]:[],paid=list.reduce((n,p)=>n+(Number.isFinite(Number(p.cents))?Math.max(0,Number(p.cents)):0),0);return {nome:label,valor:base/100,pago:paid/100,pendente:Math.max(0,base-paid)/100,status:statuses[id]||'Pendente'};});})(),
 inadimplencias:arr('📋 Inadimplências').filter(row=>!!name&&norm(row.nome)===name).map(row=>pick(row,['mensalidade','loja','camarinha','sessaoExu','sessaoEspecial'])),
 agenda:arr('📆 Agenda diária').filter(own).map(r=>pick(r,['data','hora','rotina','realizada','observacoes'])),
 etica:shared('📜 Código de ética do templo',['texto']),
@@ -1305,6 +1306,8 @@ const financeSummary=document.createElement('div');financeSummary.className='por
 
 const financeRows=Array.isArray(d.resumoFinanceiro)?d.resumoFinanceiro:[...ownFinance,...ownDues.map(row=>({...row,tipo:'Mensalidade',pagamento:row.status==='Pago'?'Sim':row.status==='Pendente'?'Não':''}))];
 
+const ownCamarinhas=Array.isArray(d.camarinhasResumo)?d.camarinhasResumo:[];
+if(ownCamarinhas.length){const detail=document.createElement('div');detail.className='portal-entry';const title=document.createElement('h4');title.textContent='Minhas camarinhas — valores e pagamentos';detail.append(title);for(const item of ownCamarinhas){const card=document.createElement('div');card.className='medium-finance-item';const heading=document.createElement('strong');heading.textContent=item.nome;card.append(heading);addLine(card,'Valor da camarinha',currency(Number(item.valor)||0));addLine(card,'Valor pago parcial',currency(Number(item.pago)||0));addLine(card,'Valor pendente',currency(Number(item.pendente)||0));detail.append(card);}financeSummary.append(detail);}
 const categories=['Mensalidade','Sessão Exu','Sessão cigana','Sessão Cosme','Segurança do ano','Ancestrais','Camarinhas','Gastos loja'];
 const currentYear=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric'}).format(new Date());
 const yearLabel=document.createElement('label');yearLabel.textContent='Ano do resumo';
