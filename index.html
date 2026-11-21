@@ -1351,7 +1351,12 @@ let totalPaid=0,totalPending=0,totalUpcoming=0;
 for(const category of categories){
 const rows=financeRows.filter(row=>row.tipo===category&&(category==='Camarinhas'||String(row.mes||row.data||'').slice(0,4)===yearSelect.value));
 let paid=0,pending=0,upcoming=0;
-for(const row of rows){const value=cents(row.valor);if(row.pagamento==='Sim')paid+=value;else if(row.pagamento==='Não')pending+=value;else upcoming+=value;}
+if(category==='Camarinhas'&&ownCamarinhas.length){
+// O resumo usa os mesmos pagamentos parciais do detalhamento das nove camarinhas.
+for(const item of ownCamarinhas){const value=cents(item.valor),received=Math.max(0,cents(item.pago));paid+=received;pending+=Math.max(0,value-received);}
+}else{
+for(const row of rows){const value=cents(row.valor);const state=String(row.pagamento||row.status||'').trim().toLocaleLowerCase('pt-BR');if(state==='sim'||state==='pago'||state==='paga')paid+=value;else if(state==='não'||state==='nao'||state==='pendente')pending+=value;else upcoming+=value;}
+}
 const card=document.createElement('div');card.className='medium-finance-item';const title=document.createElement('strong');title.textContent=category;card.append(title);
 addLine(card,'Pago',currency(paid/100));addLine(card,'Pendente',currency(pending/100));addLine(card,'A vencer / sem confirmação',currency(upcoming/100));addLine(card,'Total',currency((paid+pending+upcoming)/100));financialGrid.append(card);
 totalPaid+=paid;totalPending+=pending;totalUpcoming+=upcoming;
