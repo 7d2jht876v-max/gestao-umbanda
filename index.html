@@ -1353,7 +1353,7 @@ const filter=document.createElement('select');filter.setAttribute('aria-label','
 filterLabel.append(filter);const search=document.createElement('input');search.type='search';search.placeholder='Buscar camarinha...';search.setAttribute('aria-label','Buscar camarinha');search.style.cssText='flex:1;min-width:150px;max-width:320px';controls.append(filterLabel,search);detail.append(controls);
 const list=document.createElement('div');detail.append(list);
 const renderCamarinhas=()=>{list.replaceChildren();let visible=0;
-ownCamarinhas.forEach((item,i)=>{const total=Number(item.valor)||0,paid=Number(item.pago)||0,pending=Number(item.pendente)||0;
+ownCamarinhas.forEach((item,i)=>{const total=Math.max(0,Number(item.valor)||0),paid=Math.min(total,Math.max(0,Number(item.pago)||0)),remaining=Math.max(0,total-paid),state=String(item.status||'').trim().toLocaleLowerCase('pt-BR'),isUpcoming=state==='a vencer'||state==='sem confirmação'||state==='sem confirmacao',pending=isUpcoming?0:remaining,upcoming=isUpcoming?remaining:0;
 if(filter.value==='pending'&&pending<=0)return;
 if(filter.value==='paid'&&(total<=0||pending>0))return;
 if(filter.value.startsWith('item-')&&filter.value!=='item-'+i)return;
@@ -1364,7 +1364,7 @@ const heading=document.createElement('strong');heading.textContent='⌂ '+String
 const amounts=document.createElement('div');amounts.style.cssText='display:flex;flex-direction:column;gap:3px';
 const amount=document.createElement('strong');amount.textContent=currency(total);amount.style.color='#51250e';
 const paidLine=document.createElement('span');paidLine.textContent='Pago: '+currency(paid);paidLine.style.color='#16702a';
-const pendingLine=document.createElement('span');pendingLine.textContent='Pendente: '+currency(pending);pendingLine.style.color='#b31919';
+const pendingLine=document.createElement('span');pendingLine.textContent=(isUpcoming?'A vencer: ':'Pendente: ')+currency(isUpcoming?upcoming:pending);pendingLine.style.color=isUpcoming?'#83591c':'#b31919';
 amounts.append(amount,paidLine,pendingLine);card.append(heading,amounts);list.append(card);
 });
 if(!visible){const empty=document.createElement('p');empty.className='muted';empty.textContent='Nenhuma camarinha encontrada para este filtro.';list.append(empty);}
@@ -1389,7 +1389,7 @@ const rows=financeRows.filter(row=>row.tipo===category&&(category==='Camarinhas'
 let paid=0,pending=0,upcoming=0;
 if(category==='Camarinhas'&&ownCamarinhas.length){
 // O resumo usa os mesmos pagamentos parciais do detalhamento das nove camarinhas.
-for(const item of ownCamarinhas){const value=cents(item.valor),received=Math.max(0,cents(item.pago));paid+=received;pending+=Math.max(0,value-received);}
+for(const item of ownCamarinhas){const value=cents(item.valor),received=Math.min(value,Math.max(0,cents(item.pago))),remaining=Math.max(0,value-received),state=String(item.status||'').trim().toLocaleLowerCase('pt-BR');paid+=received;if(state==='a vencer'||state==='sem confirmação'||state==='sem confirmacao')upcoming+=remaining;else pending+=remaining;}
 }else{
 for(const row of rows){const value=cents(row.valor);const state=String(row.pagamento||row.status||'').trim().toLocaleLowerCase('pt-BR');if(state==='sim'||state==='pago'||state==='paga')paid+=value;else if(state==='não'||state==='nao'||state==='pendente')pending+=value;else upcoming+=value;}
 }
