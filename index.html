@@ -1297,6 +1297,42 @@ const button=document.createElement('button');button.type='button';button.textCo
 button.onclick=()=>{sections.forEach((s,i)=>{s.hidden=s!==section;buttons[i].setAttribute('aria-expanded',String(s===section));});};
 nav.append(button);buttons.push(button);sections.push(section);return section;
 }
+
+// Central de avisos: acompanha os dados publicados pelo administrador para este médium.
+// O histórico de leitura é local ao dispositivo; push remoto requer serviço de envio no servidor.
+const notificationTypes=[
+['comunicados','📢 Comunicado','titulo','mensagem'],
+['estudos','🎓 Estudo','titulo','link'],
+['axes','🌿 Axé','titulo','comoPreparar'],
+['axesSemana','📅 Axé da semana','titulo','comoPreparar'],
+['escalaMesaExu','📋 Escala da mesa Exu','titulo','observacoes']
+];
+const notices=notificationTypes.flatMap(([key,kind,titleKey,bodyKey])=>(Array.isArray(d[key])?d[key]:[]).map((item,i)=>({
+kind,title:String(item[titleKey]||kind),body:String(item[bodyKey]||''),date:String(item.data||item.semana||''),
+id:key+'|'+i+'|'+JSON.stringify(item)
+})));
+const noticeStorageKey='gestao-umbanda-notificacoes-lidas-'+String(user.id||user.email||'');
+let readNotices=[];try{readNotices=JSON.parse(localStorage.getItem(noticeStorageKey)||'[]');if(!Array.isArray(readNotices))readNotices=[];}catch(e){readNotices=[];}
+const noticePanel=panel('🔔 Notificações');
+const noticeStatus=document.createElement('p');noticeStatus.className='muted';noticePanel.append(noticeStatus);
+const noticeList=document.createElement('div');noticePanel.append(noticeList);
+const noticeButton=buttons[buttons.length-1];
+function drawNotices(){
+noticeList.replaceChildren();
+const unread=notices.filter(n=>!readNotices.includes(n.id)).length;
+noticeButton.textContent='🔔 Notificações'+(unread?' ('+unread+')':'');
+noticeStatus.textContent=unread?unread+' publicação(ões) ainda não marcada(s) como lida(s).':'Nenhuma publicação não lida neste aparelho.';
+if(!notices.length){const empty=document.createElement('p');empty.textContent='Nenhuma publicação disponível para este médium.';noticeList.append(empty);return;}
+for(const n of notices.slice().reverse()){
+const item=document.createElement('div');item.className='portal-entry';item.style.cssText='border:1px solid #c9a687;border-radius:10px;padding:12px;margin:8px 0;background:#fffaf5';
+const heading=document.createElement('strong');heading.textContent=n.kind+' — '+n.title;item.append(heading);
+if(n.date){const dt=document.createElement('p');dt.className='muted';dt.textContent=n.date;item.append(dt);}
+if(n.body){const body=document.createElement('p');body.textContent=n.body.slice(0,300);item.append(body);}
+const btn=document.createElement('button');btn.type='button';btn.textContent=readNotices.includes(n.id)?'✓ Lida':'Marcar como lida';btn.disabled=readNotices.includes(n.id);
+btn.onclick=()=>{if(!readNotices.includes(n.id)){readNotices.push(n.id);localStorage.setItem(noticeStorageKey,JSON.stringify(readNotices));drawNotices();}};item.append(btn);noticeList.append(item);
+}
+}
+drawNotices();
 const summary=panel('🏠 Meu resumo');
 const ownDues=Array.isArray(d.mensalidades)?d.mensalidades:[];
 const currency=amount=>amount.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
