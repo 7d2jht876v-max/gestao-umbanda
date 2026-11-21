@@ -928,22 +928,15 @@ $('finance-medium-list').onchange=e=>{if(e.target.matches('.finance-single-month
 
 // Persistir mensalidades também durante a digitação no iPhone, sem exigir sair do campo.
 // O manipulador de change acima mantém a validação, o índice e a sincronização existentes.
-let financeDueTypingTimer;
-$('finance-medium-list').addEventListener('input',event=>{
+// Não alterar o campo enquanto o usuário digita no teclado do iPhone.
+// Selecionar o valor atual permite substituir 0,00 desde o primeiro dígito.
+$('finance-medium-list').addEventListener('focusin',event=>{
  const field=event.target;
- if(!field.matches('.finance-due-value'))return;
- clearTimeout(financeDueTypingTimer);
- financeDueTypingTimer=setTimeout(()=>{
-  if(!field.isConnected)return;
-  const cents=debtCents(field.value);
-  if(cents===null)return; // não gravar números incompletos
-  field.dispatchEvent(new Event('change',{bubbles:true}));
- },650);
+ if(field.matches('.finance-due-value'))field.select();
 });
 $('finance-medium-list').addEventListener('focusout',event=>{
  const field=event.target;
  if(!field.matches('.finance-due-value'))return;
- clearTimeout(financeDueTypingTimer);
  if(debtCents(field.value)!==null)field.dispatchEvent(new Event('change',{bubbles:true}));
 });
 
