@@ -530,38 +530,42 @@ const name=esc(f.nome||'Arquivo dos débitos'),url=esc(f.url);
 const image=/^data:image\/(?:jpeg|jpg|png|gif|webp|avif|bmp);base64,/i.test(f.url);
 const pdf=/^data:application\/pdf;base64,/i.test(f.url);
 const preview=image?'<img src="'+url+'" alt="'+name+'" style="display:block;width:100%;max-height:600px;object-fit:contain;border-radius:10px;margin:10px 0">':pdf?'<object data="'+url+'" type="application/pdf" aria-label="'+name+'" style="display:block;width:100%;height:500px;border:1px solid #cbded4;margin:10px 0"><p>Use Baixar arquivo para visualizar este PDF.</p></object>':'<p class="muted">Baixe o arquivo para abri-lo no aplicativo correspondente.</p>';
-return '<div class="debt-attachment-preview" style="border:1px solid #cbded4;border-radius:12px;padding:12px;margin:12px 0;max-width:100%;overflow:hidden"><strong>'+name+'</strong>'+preview+'<a href="'+url+'" download="'+name+'" data-save-attachment class="drive-link">Baixar arquivo</a></div>';
+return '<div class="debt-attachment-preview" style="border:1px solid #cbded4;border-radius:12px;padding:12px;margin:12px 0;max-width:100%;overflow:hidden"><strong>'+name+'</strong>'+preview+'<a href="'+url+'" download="'+name+'" data-open-attachment class="drive-link">📖 Abrir original</a> <a href="'+url+'" download="'+name+'" data-save-attachment class="drive-link">⬇️ Baixar original</a></div>';
 }).join('');
 }
-// Compartilhamento nativo mantém o nome e o tipo dos anexos no iPhone.
+// Abertura e download de anexos preservando nome, extensão e conteúdo original.
 document.addEventListener('click',async event=>{
-const link=event.target.closest?.('a[data-save-attachment]');
+const link=event.target.closest?.('a[data-open-attachment],a[data-save-attachment]');
 if(!link)return;
 event.preventDefault();
 if(link.dataset.busy)return;
 link.dataset.busy='1';
 let feedback=link.parentElement.querySelector('[data-download-status]');
 if(!feedback){feedback=document.createElement('p');feedback.dataset.downloadStatus='';feedback.setAttribute('role','status');link.after(feedback);}
+const opening=link.hasAttribute('data-open-attachment');
 try{
 const source=link.getAttribute('href'),match=/^data:([^;]+);base64,(.+)$/i.exec(source||'');
 if(!match)throw Error('O anexo não está disponível. Edite o cadastro e anexe o arquivo novamente.');
 const raw=atob(match[2]),bytes=new Uint8Array(raw.length);
 for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
-const file=new File([bytes],link.getAttribute('download')||'arquivo',{type:match[1]});
+const name=link.getAttribute('download')||'arquivo';
+const extension=name.split('.').pop().toLowerCase();
+const mime=extension==='docx'?'application/vnd.openxmlformats-officedocument.wordprocessingml.document':extension==='doc'?'application/msword':match[1];
+const file=new File([bytes],name,{type:mime});
 const ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 if(ios&&navigator.canShare?.({files:[file]})){
-feedback.textContent='Escolha “Salvar em Arquivos” para guardar no iPhone.';
-try{await navigator.share({files:[file],title:file.name});feedback.textContent='Compartilhamento concluído. Se escolheu Salvar em Arquivos, consulte a pasta selecionada.';}
-catch(error){if(error.name==='AbortError'){feedback.textContent='Operação cancelada. Toque em Baixar arquivo para tentar novamente.';return;}throw error;}
+feedback.textContent=opening?'Escolha Word, Pages ou outro aplicativo para abrir o documento.':'Escolha “Salvar em Arquivos” para guardar o original no iPhone.';
+try{await navigator.share({files:[file],title:file.name});feedback.textContent='Documento enviado ao aplicativo escolhido.';}
+catch(error){if(error.name==='AbortError'){feedback.textContent='Compartilhamento fechado. Toque novamente se desejar.';return;}throw error;}
 }else{
-const url=URL.createObjectURL(file),download=document.createElement('a');
-download.href=url;download.download=file.name;
-if(ios){download.target='_blank';download.rel='noopener';}
-document.body.append(download);download.click();download.remove();
+const url=URL.createObjectURL(file),anchor=document.createElement('a');
+anchor.href=url;
+if(opening){anchor.target='_blank';anchor.rel='noopener';}else{anchor.download=file.name;}
+document.body.append(anchor);anchor.click();anchor.remove();
 setTimeout(()=>URL.revokeObjectURL(url),120000);
-feedback.textContent=ios?'Se o documento abrir, toque em Compartilhar e em Salvar em Arquivos.':'Download solicitado. Confira a pasta de downloads do navegador.';
+feedback.textContent=opening?'Abertura solicitada. Se não abrir, use Baixar original.':'Download solicitado. Confira a pasta de downloads.';
 }
-}catch(error){feedback.textContent='Não foi possível baixar: '+error.message;}
+}catch(error){feedback.textContent='Não foi possível '+(opening?'abrir':'baixar')+': '+error.message;}
 finally{delete link.dataset.busy;}
 });
 function drawDebtAttachments(){
