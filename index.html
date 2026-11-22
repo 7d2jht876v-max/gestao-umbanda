@@ -396,7 +396,7 @@ return '<div class="medium-finance-item"><strong>'+esc(nome||'Sem nome')+'</stro
 }).join('')+'</div></div>';
 }
 function sessionAttendanceForm(entries=[]){
-const meds=(data['👥 Médiuns']||[]).filter(m=>m.nome);
+const meds=[...new Map((data['👥 Médiuns']||[]).filter(m=>m.nome&&String(m.nome).trim()).map(m=>[String(m.nome).normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().replace(/\s+/g,' ').toLocaleLowerCase('pt-BR'),m])).values()];
 if(!meds.length)return '<div class="attendance-panel"><h3>Presença dos médiuns</h3><p>Cadastre os médiuns antes de marcar presença.</p></div>';
 const selected=new Map((Array.isArray(entries)?entries:[]).map(x=>[x.nome,x.presenca]));
 return '<div class="attendance-panel"><h3>Presença dos médiuns</h3><button type="button" id="select-all-mediums">Selecionar todos os médiuns</button> <button type="button" id="confirm-all-mediums">Confirmar todos os médiuns — Sim</button><p class="muted">Selecione os participantes e marque Sim ou Não para cada um.</p>'+meds.map((m,i)=>{const checked=selected.has(m.nome);const val=selected.get(m.nome)||'';return '<div class="attendance-person"><label><input type="checkbox" class="att-member" data-name="'+esc(m.nome)+'" '+(checked?'checked':'')+'> '+esc(m.nome)+'</label><div class="attendance-choices"><label><input type="radio" name="att_'+i+'" value="Sim" '+(val==='Sim'?'checked':'')+'> Sim</label><label><input type="radio" name="att_'+i+'" value="Não" '+(val==='Não'?'checked':'')+'> Não</label></div></div>'}).join('')+'<div id="attendance-totals" class="attendance-totals" aria-live="polite">Sim: 0 | Não: 0 | Sem resposta: 0</div></div>';
@@ -529,43 +529,87 @@ return (Array.isArray(files)?files:[]).filter(f=>f&&typeof f.url==='string'&&/^d
 const name=esc(f.nome||'Arquivo dos débitos'),url=esc(f.url);
 const image=/^data:image\/(?:jpeg|jpg|png|gif|webp|avif|bmp);base64,/i.test(f.url);
 const pdf=/^data:application\/pdf;base64,/i.test(f.url);
-const preview=image?'<img src="'+url+'" alt="'+name+'" style="display:block;width:100%;max-height:600px;object-fit:contain;border-radius:10px;margin:10px 0">':pdf?'<object data="'+url+'" type="application/pdf" aria-label="'+name+'" style="display:block;width:100%;height:500px;border:1px solid #cbded4;margin:10px 0"><p>Use Baixar arquivo para visualizar este PDF.</p></object>':'<p class="muted">Baixe o arquivo para abri-lo no aplicativo correspondente.</p>';
-return '<div class="debt-attachment-preview" style="border:1px solid #cbded4;border-radius:12px;padding:12px;margin:12px 0;max-width:100%;overflow:hidden"><strong>'+name+'</strong>'+preview+'<a href="'+url+'" download="'+name+'" data-open-attachment class="drive-link">📖 Abrir original</a> <a href="'+url+'" download="'+name+'" data-save-attachment class="drive-link">⬇️ Baixar original</a></div>';
+const preview=image?'<img src="'+url+'" alt="'+name+'" style="display:block;width:100%;max-height:600px;object-fit:contain;border-radius:10px;margin:10px 0">':pdf?'<object data="'+url+'" type="application/pdf" aria-label="'+name+'" style="display:block;width:100%;height:500px;border:1px solid #cbded4;margin:10px 0"><p>Use Baixar arquivo para visualizar este PDF.</p></object>':'<p class="muted">Toque em Visualizar arquivo para ler o conteúdo sem baixar.</p>';
+return '<div class="debt-attachment-preview" style="border:1px solid #cbded4;border-radius:12px;padding:12px;margin:12px 0;max-width:100%;overflow:hidden"><strong>'+name+'</strong>'+preview+'<div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" data-preview-inline class="drive-link">👁️ Visualizar arquivo</button><a href="'+url+'" download="'+name+'" data-save-attachment class="drive-link">⬇️ Baixar original</a></div></div>';
 }).join('');
 }
-// Abertura e download de anexos preservando nome, extensão e conteúdo original.
+// Visualização dentro do app, sem download obrigatório. DOCX usa extração de texto segura.
+let gestaoMammothPromise;
+function gestaoLoadMammoth(){
+ if(window.mammoth)return Promise.resolve(window.mammoth);
+ if(!gestaoMammothPromise)gestaoMammothPromise=new Promise((resolve,reject)=>{
+  const script=document.createElement('script');
+  script.src='https://cdn.jsdelivr.net/npm/mammoth@1.9.1/mammoth.browser.min.js';
+  script.onload=()=>window.mammoth?resolve(window.mammoth):reject(Error('Visualizador indisponível'));
+  script.onerror=()=>reject(Error('Sem conexão com o visualizador Word'));
+  document.head.append(script);
+ });
+ return gestaoMammothPromise;
+}
 document.addEventListener('click',async event=>{
-const link=event.target.closest?.('a[data-open-attachment],a[data-save-attachment]');
+ const btn=event.target.closest?.('[data-preview-inline]');if(!btn)return;
+ const card=btn.closest('.debt-attachment-preview');
+ const link=card?.querySelector('[data-save-attachment]');if(!link)return;
+ const url=link.getAttribute('href'),name=link.getAttribute('download')||'arquivo';
+ let viewer=card.querySelector('.gestao-inline-viewer');
+ if(viewer){viewer.remove();return;}
+ viewer=document.createElement('div');viewer.className='gestao-inline-viewer';
+ viewer.style.cssText='margin:12px 0;padding:12px;border:1px solid #cbded4;border-radius:10px;max-height:65vh;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere';
+ viewer.textContent='Abrindo visualização…';card.append(viewer);
+ try{
+  if(/\.docx$/i.test(name)){
+   const mammoth=await gestaoLoadMammoth();
+   const buffer=await (await fetch(url)).arrayBuffer();
+   const result=await mammoth.extractRawText({arrayBuffer:buffer});
+   viewer.textContent=result.value||'O documento não contém texto extraível.';
+  }else if(/\.pdf$/i.test(name)||/^data:application\/pdf/i.test(url)){
+   const blob=await (await fetch(url)).blob(),blobUrl=URL.createObjectURL(blob);
+   viewer.textContent='';const frame=document.createElement('iframe');frame.title='Visualização de '+name;
+   frame.src=blobUrl;frame.style.cssText='width:100%;height:60vh;border:0';viewer.append(frame);
+   frame.addEventListener('load',()=>setTimeout(()=>URL.revokeObjectURL(blobUrl),120000),{once:true});
+  }else if(/^data:image\//i.test(url)){
+   viewer.textContent='';const img=document.createElement('img');img.src=url;img.alt=name;img.style.maxWidth='100%';viewer.append(img);
+  }else if(/\.(txt|csv|json|md)$/i.test(name)){
+   viewer.textContent=await (await fetch(url)).text();
+  }else{
+   viewer.textContent='Prévia interna indisponível para este formato. Use Baixar original para abrir no aplicativo compatível.';
+  }
+ }catch(e){viewer.textContent='Não foi possível visualizar aqui: '+e.message+'. O arquivo original permanece disponível.';}
+});
+// Compartilhamento nativo mantém o nome e o tipo dos anexos no iPhone.
+document.addEventListener('click',async event=>{
+const link=event.target.closest?.('a[data-save-attachment],a[data-open-attachment]');
 if(!link)return;
 event.preventDefault();
 if(link.dataset.busy)return;
 link.dataset.busy='1';
 let feedback=link.parentElement.querySelector('[data-download-status]');
 if(!feedback){feedback=document.createElement('p');feedback.dataset.downloadStatus='';feedback.setAttribute('role','status');link.after(feedback);}
-const opening=link.hasAttribute('data-open-attachment');
 try{
 const source=link.getAttribute('href'),match=/^data:([^;]+);base64,(.+)$/i.exec(source||'');
 if(!match)throw Error('O anexo não está disponível. Edite o cadastro e anexe o arquivo novamente.');
 const raw=atob(match[2]),bytes=new Uint8Array(raw.length);
 for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
-const name=link.getAttribute('download')||'arquivo';
-const extension=name.split('.').pop().toLowerCase();
-const mime=extension==='docx'?'application/vnd.openxmlformats-officedocument.wordprocessingml.document':extension==='doc'?'application/msword':match[1];
-const file=new File([bytes],name,{type:mime});
+const originalName=link.getAttribute('download')||'arquivo';
+const word=/\.(docx|doc)$/i.test(originalName);
+const mime=word?(originalName.toLowerCase().endsWith('.docx')?'application/vnd.openxmlformats-officedocument.wordprocessingml.document':'application/msword'):match[1];
+const file=new File([bytes],originalName,{type:mime});
+const opening=link.hasAttribute('data-open-attachment');
 const ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 if(ios&&navigator.canShare?.({files:[file]})){
-feedback.textContent=opening?'Escolha Word, Pages ou outro aplicativo para abrir o documento.':'Escolha “Salvar em Arquivos” para guardar o original no iPhone.';
-try{await navigator.share({files:[file],title:file.name});feedback.textContent='Documento enviado ao aplicativo escolhido.';}
-catch(error){if(error.name==='AbortError'){feedback.textContent='Compartilhamento fechado. Toque novamente se desejar.';return;}throw error;}
+feedback.textContent=opening?'Escolha Word, Pages ou outro aplicativo compatível para abrir o original.':'Escolha “Salvar em Arquivos” para guardar o original no iPhone.';
+try{await navigator.share({files:[file],title:file.name});feedback.textContent=opening?'Documento enviado ao aplicativo selecionado.':'Compartilhamento concluído. Confira a pasta selecionada se salvou o arquivo.';}
+catch(error){if(error.name==='AbortError'){feedback.textContent='Nenhuma alteração no arquivo. Toque novamente quando quiser abrir ou salvar.';return;}throw error;}
 }else{
-const url=URL.createObjectURL(file),anchor=document.createElement('a');
-anchor.href=url;
-if(opening){anchor.target='_blank';anchor.rel='noopener';}else{anchor.download=file.name;}
-document.body.append(anchor);anchor.click();anchor.remove();
+const url=URL.createObjectURL(file),download=document.createElement('a');
+download.href=url;download.download=file.name;
+if(opening){download.removeAttribute('download');download.target='_blank';}
+if(ios){download.target='_blank';download.rel='noopener';}
+document.body.append(download);download.click();download.remove();
 setTimeout(()=>URL.revokeObjectURL(url),120000);
-feedback.textContent=opening?'Abertura solicitada. Se não abrir, use Baixar original.':'Download solicitado. Confira a pasta de downloads.';
+feedback.textContent=opening?'Arquivo original encaminhado ao visualizador. Se não abrir, use Baixar original e abra no Word ou Pages.':ios?'Use Compartilhar e Salvar em Arquivos se necessário.':'Download solicitado. Confira a pasta de downloads do navegador.';
 }
-}catch(error){feedback.textContent='Não foi possível '+(opening?'abrir':'baixar')+': '+error.message;}
+}catch(error){feedback.textContent='Não foi possível baixar: '+error.message;}
 finally{delete link.dataset.busy;}
 });
 function drawDebtAttachments(){
@@ -953,8 +997,7 @@ $('finance-medium-list').addEventListener('click',e=>{
  const row=e.target.closest('.finance-due-row'),form=row.querySelector('.camarinha-new-form');
  const date=form.querySelector('.camarinha-new-date').value,amount=debtCents(form.querySelector('.camarinha-new-value').value);
  if(!date||amount===null||amount<=0){alert('Informe uma data e um valor maior que zero.');return;}
- const key=row.querySelector('.finance-extra-status').dataset.extraKey;
- (camarinhaPayments[key]??=[]).push({date,cents:amount});saveCamarinhaPayments();camarinhaRender(row);
+ const key=row.querySelector('.finance-extra-status').dataset.extraKey; (camarinhaPayments[key]??=[]).push({date,cents:amount});saveCamarinhaPayments();camarinhaRender(row);
 });
 // Manter os valores das camarinhas editáveis no iPhone sem recriar o campo durante a digitação.
 $('finance-medium-list').addEventListener('focusin',e=>{const input=e.target;if(input.matches('.finance-camarinha-values .finance-category-value'))input.select();});
@@ -1953,8 +1996,7 @@ async function upload(){
 initializeRecovery().catch(error=>{role=null;setAccess(false);msg('Não foi possível verificar o acesso: '+errorText(error));formLogin();});
 })();
 
-</script><script>(async()=>{
-const localStorage=await window.GESTAO_STORAGE_READY;
+</script><script>(async()=>{const localStorage=await window.GESTAO_STORAGE_READY;
 const key='gestao-umbanda-radiestesia-fichas-v1',form=document.getElementById('rf-form'),select=document.getElementById('rf-records'),lines=document.getElementById('rf-lines'),status=document.getElementById('rf-status');let records=[],id='';try{records=JSON.parse(localStorage.getItem(key)||'[]')}catch(e){status.textContent='Não foi possível ler as fichas salvas.'}function recoverTerezinha(){
  try{
   const previous=JSON.parse(localStorage.getItem('gestao-umbanda-v1')||'{}');
@@ -2043,5 +2085,4 @@ setInterval(()=>{if(!document.hidden)void syncCloud();},10000);
 void syncCloud();
 if(/^#(?:rf-|ficha-radiestesia|avaliacao-radiestesia)/.test(location.hash)){const tab=[...document.querySelectorAll('[data-tab]')].find(b=>b.dataset.tab==='📋 Prontuário consulente radiestesia');if(tab)tab.click();}
 })();</script><script src="./install.js?v=217-notebook-iphone" defer></script></body></html>
-
 
