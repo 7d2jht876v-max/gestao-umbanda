@@ -162,7 +162,25 @@ body > header .templo-photo-notebook{display:none}
 <script>
 /* Storage upgrade: migrate only after IndexedDB commits successfully. */
 window.GESTAO_STORAGE_READY=(async()=>{
-const native=window.localStorage,cache=new Map();let db;
+const cache=new Map();
+if(location.hostname==='7d2jht876v-max.github.io'){
+ const storage={
+  keys:()=>Array.from(cache.keys()),
+  getItem:key=>cache.get(String(key))??null,
+  setItem:(key,value)=>cache.set(String(key),String(value)),
+  removeItem:key=>cache.delete(String(key)),
+  flush:async()=>{}
+ };
+ window.GESTAO_CLOUD_ONLY=true;
+ const style=document.createElement('style');
+ style.textContent='html[data-cloud-locked] main > :not(#cloud-access){display:none!important}';
+ document.head.append(style);
+ document.documentElement.dataset.cloudLocked='';
+ window.GESTAO_STORAGE=storage;
+ window.GESTAO_STORAGE_FLUSH=storage.flush;
+ return storage;
+}
+const native=window.localStorage;let db;
 const managed=key=>/^gestao[-_]/i.test(String(key));
 try{
 const openStorage=version=>new Promise((resolve,reject)=>{
@@ -743,7 +761,7 @@ if(current==='📋 Prontuário consulente radiestesia'){$('view').replaceChildre
 if(current==="📂 Exercícios das camarinhas"){
 const sectionKey=current;
 const folderNames=["1 - Camarinha","2 - Camarinha","3 - Camarinha","4 - Camarinha","5 - Camarinha","6 - Camarinha 3 orixás","7 - Camarinha 3 orixás","8 - Camarinha 3 orixás","9 - Camarinha orixá do corpo + Ifá + consagração","10 - Ogam"];
-$('view').innerHTML='<div class="card"><h2>📂 Exercícios das camarinhas</h2><p class="muted">Uso exclusivo do administrador. Abra uma pasta para incluir fotos e arquivos. Os anexos são salvos neste aparelho e enviados automaticamente à nuvem. Se a conexão falhar, o envio será tentado novamente. Confira o resultado no Acesso seguro.</p><p class="muted">Limite de 2 MB por arquivo e 3 MB por envio. Fotos grandes são reduzidas automaticamente.</p><div id="camarinha-exercises-folders"></div></div>';
+$('view').innerHTML='<div class="card"><h2>📂 Exercícios das camarinhas</h2><p class="muted">Uso exclusivo do administrador. Abra uma pasta para incluir fotos e arquivos. Os anexos são enviados automaticamente. Se a conexão falhar, o envio será tentado novamente. Confira o resultado no Acesso seguro.</p><p class="muted">Limite de 2 MB por arquivo e 3 MB por envio. Fotos grandes são reduzidas automaticamente.</p><div id="camarinha-exercises-folders"></div></div>';
 const host=$('camarinha-exercises-folders');
 folderNames.forEach((name,index)=>{
  const folder=String(index+1),box=document.createElement('details');box.className='card';
@@ -798,7 +816,7 @@ folderNames.forEach((name,index)=>{
    const row={id:crypto.randomUUID(),pasta:folder,titulo:name,anexos:attachments,updatedAt:new Date().toISOString()};
    before=(data[sectionKey]||[]).slice();addedIds=[row.id];
    data[sectionKey]=before.concat(row);save();await verifySavedRow(sectionKey,row);
-   draw();status.textContent='✓ Anexos salvos neste aparelho. Envio automático à nuvem pendente; confira o resultado no Acesso seguro.';
+   draw();status.textContent='Anexos preparados. Aguarde a confirmação no Acesso seguro.';
   }catch(error){
    if(before){data[sectionKey]=(data[sectionKey]||[]).filter(r=>!addedIds.includes(r.id));try{save();await window.GESTAO_STORAGE_FLUSH();}catch{}}
    status.textContent='Não foi possível anexar: '+error.message;
@@ -1073,7 +1091,7 @@ $('finance-medium-list').addEventListener('click',e=>{
 // Manter os valores das camarinhas editáveis no iPhone sem recriar o campo durante a digitação.
 $('finance-medium-list').addEventListener('focusin',e=>{const input=e.target;if(input.matches('.finance-camarinha-values .finance-category-value'))input.select();});
 $('finance-medium-list').addEventListener('focusout',e=>{const input=e.target;if(input.matches('.finance-camarinha-values .finance-category-value')&&debtCents(input.value)!==null)input.dispatchEvent(new Event('change',{bubbles:true}));});
-$('finance-medium-list').addEventListener('change',e=>{const input=e.target.closest('.finance-category-value');if(input){const amount=debtCents(input.value);if(amount===null){input.setCustomValidity('Informe um valor positivo, como 90,00.');input.reportValidity();return;}input.setCustomValidity('');const config=categoryValueConfig(input.closest('.finance-due-row').querySelector('select'));config.map['valor|'+config.key]=amount/100;localStorage.setItem(config.storage,JSON.stringify(config.map));input.value=(amount/100).toFixed(2).replace('.',',');}if(input||e.target.matches('.finance-exu-status,.finance-cigana-status,.finance-extra-status'))queueMicrotask(updateCategoryValueTotals);});
+$('finance-medium-list').addEventListener('change',e=>{const input=e.target.closest('.finance-category-value');if(input){const amount=debtCents(input.value);if(amount===null){input.setCustomValidity('Informe um valor positivo, como 90,00.');input.reportValidity();return;}input.setCustomValidity('');const config=categoryValueConfig(input.closest('.finance-due-row').querySelector('select'));config.map['valor|'+config.key]=amount/100;localStorage.setItem(config.storage,JSON.stringify(config.map));save();input.value=(amount/100).toFixed(2).replace('.',',');}if(input||e.target.matches('.finance-exu-status,.finance-cigana-status,.finance-extra-status'))queueMicrotask(updateCategoryValueTotals);});
 
 const updateDuesTotals=()=>{$('finance-medium-list').querySelectorAll('.finance-year-months').forEach(box=>{let total=0,paid=0,pending=0;box.querySelectorAll('.finance-due-row').forEach(line=>{const amount=debtCents(line.querySelector('.finance-due-value').value)||0;total+=amount;const status=line.querySelector('.finance-due-status').value;if(status==='Pago')paid+=amount;else if(status==='Pendente')pending+=amount;});box.querySelector('.finance-dues-total').textContent='Total do ano: '+debtMoney(total)+' · Pago: '+debtMoney(paid)+' · Pendente: '+debtMoney(pending);});};
 updateDuesTotals();
@@ -1133,7 +1151,7 @@ if(current==='📅 Sessões'){$('entry').addEventListener('change',e=>{if(e.targ
 restoreProtectedDraft();syncScaleMediums();
 
 const saveEntry=async e=>{e.preventDefault();if((current==='📢 Comunicados'||current==='🕯️ Camarinhas'||current==='📋 Escala de axé para a mesa Exu')&&debtAttachmentReading){alert('Aguarde a preparação dos anexos.');return;}const saveButton=$('save-entry');if(saveButton?.dataset.saving==='true')return;if(saveButton){saveButton.dataset.saving='true';saveButton.disabled=true;}try{window.GESTAO_UNSAVED_FORM=true;if((current==='🌿 Axés'||current==='📅 Axés da semana')&&!$('f_medium').value.trim())throw Error('Selecione o médium destinatário do axé.');if(current==='🤲 Doações'){if(!$('f_nome').value.trim())throw Error('Informe o nome do doador.');if(!/^\d{4}-\d{2}$/.test($('f_mes').value))throw Error('Informe o mês da doação.');const cents=debtCents($('f_valorDoado').value);if(cents===null||cents<=0)throw Error('Informe um valor doado maior que zero. Exemplo: 50,00.');}if(current==='📎 Formulário de cadastro de médiuns'){if(debtAttachmentReading)throw Error('Aguarde a preparação dos anexos.');if(!$('f_nome').value.trim()){debtRequiredField('f_nome','Informe o nome do médium.');return;}}if(current==='📋 Inadimplências'){if(debtAttachmentReading)throw Error('Aguarde a preparação dos anexos.');if(!$('f_nome').value.trim()){debtRequiredField('f_nome','Preencha o nome no início do cadastro. Para anexar a um débito existente, toque em Editar nesse cadastro.');return;}if(!/^\d{4}-\d{2}-\d{2}$/.test($('f_data').value)){debtRequiredField('f_data','Informe a data do débito.');return;}for(const [k,label] of debtCategories)if(debtCents($('f_'+k).value)===null)throw Error('Valor inválido em '+label+'. Use valores positivos, como 150,50.');}if(current==='🏢 Negócios – Empresas'){if(!$('f_nome').value.trim()){debtRequiredField('f_nome','Informe o nome da empresa.');return;}if(!$('f_inicioParceria').value){debtRequiredField('f_inicioParceria','Informe a data do início da parceria.');return;}const pct=Number($('f_percentual').value),amount=workMoneyNumber($('f_faturamento').value);if(!$('f_percentual').value.trim()||!Number.isFinite(pct)||pct<0||pct>100){debtRequiredField('f_percentual','Informe um percentual entre 0 e 100.');return;}if(!$('f_faturamento').value.trim()||!Number.isFinite(amount)||amount<0){debtRequiredField('f_faturamento','Informe o faturamento em reais.');return;}if($('f_faturamentoMes').value.trim()&&(!Number.isFinite(workMoneyNumber($('f_faturamentoMes').value))||workMoneyNumber($('f_faturamentoMes').value)<0)){debtRequiredField('f_faturamentoMes','Informe um faturamento do mês válido em reais.');return;}if(!options.businessmonth.includes($('f_mesNegocio').value)||!options.businessyear.includes($('f_anoNegocio').value))throw Error('Selecione o mês e o ano.');}const workPayments=current==='📝 Trabalhos consulente'?readWorkPayments():null;const editId=$('entry').dataset.editId;const isOrixaNotes=current==='📖 Características dos Orixás';const openOrixaField=isOrixaNotes?$('entry').querySelector('.orixa-box[open] textarea')?.id:null;const row=isOrixaNotes?mergedOrixaCharacteristics():(editId?JSON.parse(JSON.stringify(data[current].find(x=>String(x.id)===String(editId))||null)):{id:String(Date.now())+'-'+Math.random().toString(36).slice(2)});if(!row){alert('Este cadastro não está mais na lista. Os campos foram mantidos. Abra um cadastro existente para editar ou inicie um novo cadastro.');return;}for(const [k] of fields){const field=$('f_'+k);if(!field)throw new Error('Campo ausente: '+k);row[k]=field.value.trim();}if(current==='🤲 Doações')row.valorDoado=(debtCents(row.valorDoado)/100).toFixed(2);if(current==='🏢 Negócios – Empresas'){row.mesesPorAno=JSON.parse(JSON.stringify(businessMonthDraft));row.faturamento=workMoneyNumber(row.faturamento).toFixed(2);row.faturamentoMes=row.faturamentoMes?workMoneyNumber(row.faturamentoMes).toFixed(2):'';row.percentual=Number(row.percentual).toString();}if(current==='📢 Comunicados'||current==='🎓 Estudos'||current==='🕯️ Camarinhas'||current==='📋 Escala de axé para a mesa Exu')row.anexos=JSON.parse(JSON.stringify(debtAttachmentDraft));if(current==='📋 Inadimplências'||current==='📎 Formulário de cadastro de médiuns')row.anexosDebitos=JSON.parse(JSON.stringify(debtAttachmentDraft));if(current==='📝 Trabalhos consulente'){const amount=workMoneyNumber(row.valorTrabalho);if(!Number.isFinite(amount)||amount<0)throw Error('Informe um valor válido para o trabalho.');row.valorTrabalho=row.valorTrabalho?amount.toFixed(2):'';row.pagamentos=workPayments;}if(current==='📅 Sessões')row.presencas=attendanceValues();if(current==='👥 Médiuns'){captureMonthlyGrid();row.mensalidadesPorAno=Object.assign({},row.mensalidadesPorAno||{},monthlyDraft);}if(!fields.some(([k])=>row[k])&&!(current==='📢 Comunicados'&&row.anexos.length)&&!(current==='📅 Sessões'&&row.presencas.length)){alert('Informe os dados da sessão ou selecione pelo menos um médium.');return}const beforeSave=JSON.parse(JSON.stringify(data[current]));if(protectedForms.includes(current)){captureProtectedDraft();localStorage.setItem(KEY+'-before-save-'+encodeURIComponent(current),JSON.stringify({createdAt:new Date().toISOString(),records:{[current]:beforeSave}}));await window.GESTAO_STORAGE_FLUSH();}
-if(isOrixaNotes)data[current]=[row];else if(editId)data[current]=data[current].map(item=>String(item.id)===String(editId)?row:item);else data[current].push(row);try{save();await verifySavedRow(current,row);}catch(err){data[current]=beforeSave;alert(err?.name==='QuotaExceededError'?'O armazenamento está cheio. Exporte um backup antes de remover arquivos.':'Não foi possível gravar o cadastro. Os campos foram mantidos. Tente novamente.');return}if(protectedForms.includes(current)){localStorage.setItem(formDraftKey(current),'null');await window.GESTAO_STORAGE_FLUSH();skipDraftCapture=true;}if($('entry')?.dataset.autosave==='true'){$('entry').dataset.editId=row.id;window.GESTAO_UNSAVED_FORM=false;window.dispatchEvent(new Event('gestao-dados-salvos'));return;}render();if(protectedForms.includes(current)){$('save-feedback').textContent='✓ Cadastro e anexos gravados e conferidos neste aparelho.';}if(isOrixaNotes){const notice=document.createElement('div');notice.className='save-confirmation';notice.textContent='✓ Características salvas nos quadrados dos orixás.';$('view').prepend(notice);if(openOrixaField){const box=$(openOrixaField)?.closest('.orixa-box');if(box){box.open=true;box.querySelector('.orixa-save-feedback').textContent='✓ Anotações salvas e conferidas neste aparelho.';}}}if(current==='📅 Sessões'){const notice=document.createElement('div');notice.setAttribute('role','status');notice.className='save-confirmation';notice.textContent='✓ Sessão e presenças salvas. Total de sessões: '+data[current].length+'.';$('view').prepend(notice);}}catch(err){const message=(current==='📅 Sessões'?'Não foi possível salvar a sessão: ':'Não foi possível salvar o cadastro: ')+(err?.message||String(err));const feedback=document.getElementById('save-feedback');if(feedback)feedback.textContent=message;alert(message);console.error(err)}finally{if(saveButton){delete saveButton.dataset.saving;saveButton.disabled=false;}}};
+if(isOrixaNotes)data[current]=[row];else if(editId)data[current]=data[current].map(item=>String(item.id)===String(editId)?row:item);else data[current].push(row);try{save();await verifySavedRow(current,row);}catch(err){data[current]=beforeSave;alert(err?.name==='QuotaExceededError'?'O armazenamento está cheio. Exporte um backup antes de remover arquivos.':'Não foi possível gravar o cadastro. Os campos foram mantidos. Tente novamente.');return}if(protectedForms.includes(current)){localStorage.setItem(formDraftKey(current),'null');await window.GESTAO_STORAGE_FLUSH();skipDraftCapture=true;}if($('entry')?.dataset.autosave==='true'){$('entry').dataset.editId=row.id;window.GESTAO_UNSAVED_FORM=false;window.dispatchEvent(new Event('gestao-dados-salvos'));return;}render();if(protectedForms.includes(current)){$('save-feedback').textContent='Cadastro e anexos preparados. Confira a confirmação no Acesso seguro.';}if(isOrixaNotes){const notice=document.createElement('div');notice.className='save-confirmation';notice.textContent='✓ Características salvas nos quadrados dos orixás.';$('view').prepend(notice);if(openOrixaField){const box=$(openOrixaField)?.closest('.orixa-box');if(box){box.open=true;box.querySelector('.orixa-save-feedback').textContent='✓ Anotações salvas e conferidas neste aparelho.';}}}if(current==='📅 Sessões'){const notice=document.createElement('div');notice.setAttribute('role','status');notice.className='save-confirmation';notice.textContent='✓ Sessão e presenças salvas. Total de sessões: '+data[current].length+'.';$('view').prepend(notice);}}catch(err){const message=(current==='📅 Sessões'?'Não foi possível salvar a sessão: ':'Não foi possível salvar o cadastro: ')+(err?.message||String(err));const feedback=document.getElementById('save-feedback');if(feedback)feedback.textContent=message;alert(message);console.error(err)}finally{if(saveButton){delete saveButton.dataset.saving;saveButton.disabled=false;}}};
 $('entry').addEventListener('submit',saveEntry);
 if(current==='📅 Sessões')$('save-entry').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();saveEntry(e)});
 
@@ -1226,7 +1244,7 @@ const localStorage=await window.GESTAO_STORAGE_READY;
 'use strict';
 const cfg=window.GESTAO_UMBANDA_SUPABASE;
 const supa=window.supabase;
-if(!cfg||!cfg.publishableKey||!supa){return;}
+if(!cfg||!cfg.publishableKey||!supa){if(window.GESTAO_CLOUD_ONLY){const note=document.createElement('p');note.textContent='Não foi possível conectar à nuvem. Confira a internet e atualize a página.';document.body.prepend(note);}return;}
 // Apenas a conexão HTTPS do notebook pode sincronizar cadastros e anexos.
 // No GitHub Pages o login antigo permanece, mas nenhum dado é enviado à nuvem.
 const localNotebookSync=typeof window.notebookAPI==='function';
@@ -1238,7 +1256,7 @@ root.innerHTML='<h2 style="margin:0 0 8px">'+(localNotebookSync?'🏠 Acesso pel
 document.querySelector('main').prepend(root);
 const status=root.querySelector('#cloud-status'),controls=root.querySelector('#cloud-controls');
 const main=document.querySelector('main');
-function setAccess(isAdmin){for(const el of main.children){if(el!==root)el.style.display=isAdmin?'':'none';}}
+function setAccess(isAdmin){if(window.GESTAO_CLOUD_ONLY){if(isAdmin)delete document.documentElement.dataset.cloudLocked;else document.documentElement.dataset.cloudLocked='';}for(const el of main.children){if(el!==root)el.style.display=isAdmin?'':'none';}}
 setAccess(false);
 const localKey='gestao-umbanda-v1';
 let role=null;
@@ -1551,7 +1569,7 @@ return target;
 }
 recordsPanel('etica','📜 Código de ética',[['texto','Código de ética']]);
 const agendaPanel=panel('📆 Minha agenda diária');
-const agendaNote=document.createElement('p');agendaNote.textContent=localNotebookSync?'Edite suas atividades e clique em Salvar agenda. Suas alterações ficam salvas na sua conta do notebook.':'Edite suas atividades e clique em Salvar agenda. As novas alterações ficam somente neste aparelho (nuvem desativada).';agendaPanel.append(agendaNote);
+const agendaNote=document.createElement('p');agendaNote.textContent=localNotebookSync?'Edite suas atividades e clique em Salvar agenda. Suas alterações ficam salvas na sua conta do notebook.':'Edite suas atividades e clique em Salvar agenda. Aguarde a confirmação da gravação.';agendaPanel.append(agendaNote);
 const agendaFeedback=document.createElement('p');agendaFeedback.setAttribute('role','status');agendaPanel.append(agendaFeedback);
 const agendaList=document.createElement('div');agendaPanel.append(agendaList);
 const agendaForm=document.createElement('form');agendaPanel.append(agendaForm);
@@ -1590,14 +1608,14 @@ if(agendaError)throw agendaError;
 for(const row of savedAgenda||[])agendaItems.set(row.entry_id,row.dados);
 }catch(err){agendaLoadFailed=true;agendaFeedback.textContent='Não foi possível carregar a agenda antiga: '+errorText(err);}
 if(!localNotebookSync){for(const [id,record] of Object.entries(readPersonalAgenda()))agendaItems.set(id,record);}
-drawAgenda();fillAgenda(null);saveAgenda.disabled=agendaLoadFailed&&localNotebookSync;newAgenda.disabled=agendaLoadFailed&&localNotebookSync;
+drawAgenda();fillAgenda(null);saveAgenda.disabled=agendaLoadFailed&&(localNotebookSync||window.GESTAO_CLOUD_ONLY);newAgenda.disabled=agendaLoadFailed&&(localNotebookSync||window.GESTAO_CLOUD_ONLY);
 agendaForm.onsubmit=async event=>{
 event.preventDefault();if(saveAgenda.disabled)return;
 saveAgenda.disabled=true;newAgenda.disabled=true;agendaFeedback.textContent='Salvando…';
-const id=agendaEditing||'pessoal:'+crypto.randomUUID();
+const id=agendaEditing||'pessoal:'+crypto.randomUUID();agendaEditing=id;
 const record=Object.fromEntries(Object.entries(agendaInputs).map(([key,input])=>[key,input.value.trim()]));
 try{
-if(!localNotebookSync){
+if(!localNotebookSync&&!window.GESTAO_CLOUD_ONLY){
  const stored=readPersonalAgenda();stored[id]=record;
  localStorage.setItem(personalAgendaStorageKey,JSON.stringify(stored));
  await window.GESTAO_STORAGE_FLUSH?.();
@@ -1737,7 +1755,21 @@ function toggleNotebookConnection(){
 }
 async function refresh(){try{if(recovering){showRecoveryForm();return;}const {data:{user},error}=await accessTimeout(client.auth.getUser());if(error||!user){role=null;msg('Entre com seu e-mail e senha cadastrados no Supabase. Os dados atuais permanecem no iPhone.');formLogin();return;}
 const result=await accessTimeout(client.from('perfis').select('perfil').eq('id',user.id).single());if(result.error){role=null;msg('Login realizado, mas o perfil não foi encontrado: '+errorText(result.error));controls.innerHTML='<button id="cloud-out">Sair</button>';root.querySelector('#cloud-out').onclick=logout;return;}
-role=result.data.perfil;if(role!=='admin'){await showMediumPortal();return;}setAccess(true);msg(localNotebookSync?'Conectado: '+user.email+' • Administrador. Use Sincronizar para atualizar o iPhone e o notebook.':'Conectado: '+user.email+' • Nuvem Supabase disponível para sincronização manual. Confirme o resultado antes de considerar os dados salvos.');
+role=result.data.perfil;if(role!=='admin'){await showMediumPortal();return;}
+if(window.GESTAO_CLOUD_ONLY){
+ setAccess(false);
+ msg('Carregando cadastros e anexos da nuvem…');
+ const {data:row,error:readError}=await client.from('gestao_dados').select('conteudo,atualizado_em').eq('id','templo').single();
+ if(readError||!row?.conteudo)throw Error('Não foi possível carregar os cadastros da nuvem. Tente novamente.');
+ const baseKey=localKey+'-device-sync-base-'+user.id;
+ const detail={records:row.conteudo,result:null};
+ window.dispatchEvent(new CustomEvent('gestao-aplicar-sincronizacao',{detail}));
+ if(!detail.result?.ok)throw Error('Não foi possível abrir os cadastros.');
+ localStorage.setItem(baseKey,JSON.stringify(row.conteudo));
+ localStorage.setItem(baseKey+'-remote-version',row.atualizado_em);
+ safeSyncRemoveItem(localKey+'-auto-sync-pending');
+}
+setAccess(true);msg(localNotebookSync?'Conectado: '+user.email+' • Administrador. Use Sincronizar para atualizar o iPhone e o notebook.':'Conectado: '+user.email+' • Dados carregados. Alterações são enviadas automaticamente à nuvem.');
 controls.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap"><button id="medium-publish">Publicar dados individuais dos médiuns</button><button id="medium-provision">Cadastrar acessos com senha padrão</button><button id="cloud-device-sync">☁️ Sincronizar com a nuvem</button><button id="cloud-out" style="background:#666">Sair</button></div>';
 root.querySelector('#cloud-out').onclick=logout;
 root.querySelector('#cloud-device-sync').onclick=()=>void synchronizeDevices(true,true);
@@ -1804,7 +1836,7 @@ function mergeDeviceData(remote,local,base){
     if(prior&&same(rows[index],prior)){rows[index]=item;continue;}
     const clean=r=>Object.fromEntries(Object.entries(r).filter(([k])=>!['id','_syncConflict'].includes(k)));
     if(rows.some(r=>r&&same(clean(r),clean(item))))continue;
-    rows.push({...item,id:crypto.randomUUID(),_syncConflict:'Versão preservada de outro aparelho'});conflicts++;
+    throw Error('Edição simultânea em '+key+'. A nuvem conservou o registro. Confira as duas edições antes de tentar novamente.');
    }
    result[key]=rows;
   }else if(other===undefined||same(other,value)){result[key]=value;}
@@ -1812,7 +1844,7 @@ function mergeDeviceData(remote,local,base){
   else if(same(other,previous)){result[key]=value;}
   else if(value&&other&&typeof value==='object'&&typeof other==='object'&&!Array.isArray(value)&&!Array.isArray(other)){
    const merged=mergeDeviceData(other,value,previous||{});result[key]=merged.data;conflicts+=merged.conflicts;
-  }else{result[key]=value;conflicts++;}
+  }else{throw Error('Edição simultânea em '+key+'. Confira o valor na nuvem.');}
  }
  for(const [tab,ids] of Object.entries(deleted))if(Array.isArray(result[tab]))result[tab]=result[tab].filter(r=>!r||!ids[String(r.id)]);
  return{data:result,conflicts};
@@ -1977,6 +2009,7 @@ async function synchronizeDevices(push=false,manual=false){
    }
    msg('Todas as partes enviadas. Confirmando a gravação segura…');
    const writtenVersion=await partRPC('concluir_gestao_delta',{upload_id:transfer.id});
+   if(!writtenVersion)throw Error('A nuvem ainda não confirmou a gravação.');
    safeSyncRemoveItem(uploadKey);
    if(window.GESTAO_STORAGE_FLUSH)await window.GESTAO_STORAGE_FLUSH();
    if(writtenVersion)row={...(row||{}),atualizado_em:writtenVersion};
@@ -2004,7 +2037,7 @@ async function synchronizeDevices(push=false,manual=false){
    let radioPending=false;
    if(window.GESTAO_RADIO_SYNC)try{await bounded(window.GESTAO_RADIO_SYNC(),'A sincronização da radiestesia',15000);}catch{radioPending=true;}
    const radio=document.getElementById('rf-cloud-status')?.textContent||'';
-   msg('Sincronização concluída: somente registros novos e alterados foram transferidos. Abra o app no notebook ou iPhone com a mesma conta e aguarde até 15 segundos.'+(merged.conflicts?' Edições diferentes foram preservadas em cópias.':'')+((radioPending||(radio&&!radio.startsWith('Sincronizado com')))?' Confira também o estado da sincronização na Radiestesia.':''));
+   msg((localStorage.getItem(localKey+'-auto-sync-pending')?'Outra alteração aguarda envio.':'Salvo na nuvem.')+(merged.conflicts?' Edições diferentes foram preservadas em cópias.':'')+((radioPending||(radio&&!radio.startsWith('Sincronizado com')))?' Confira também o estado da sincronização na Radiestesia.':''));
   }
  }catch(error){
  localStorage.setItem(localKey+'-sync-retry-after',String(Date.now()+300000));
@@ -2017,17 +2050,18 @@ async function synchronizeDevices(push=false,manual=false){
 let autoSyncTimer;
 function resumeDeviceSync(){
  if(document.hidden||deviceSyncBusy||mediumPublishBusy||window.GESTAO_UNSAVED_FORM)return;
- if(!localStorage.getItem(localKey+'-auto-sync-pending'))return;
+ if(!localStorage.getItem(localKey+'-auto-sync-pending')){if(window.GESTAO_CLOUD_ONLY)void synchronizeDevices(false);return;}
  void synchronizeDevices(true);
 }
-setInterval(resumeDeviceSync,60000);
+setInterval(resumeDeviceSync,15000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)resumeDeviceSync();});
 window.addEventListener('gestao-dados-salvos',()=>{
+ if(window.GESTAO_CLOUD_ONLY)msg('Alteração aguardando confirmação da nuvem. Mantenha esta página aberta.');
  clearTimeout(autoSyncTimer);
  autoSyncTimer=setTimeout(()=>{
   if(document.hidden||window.GESTAO_UNSAVED_FORM||deviceSyncBusy||mediumPublishBusy)return;
   void synchronizeDevices(true);
- },6000);
+ },500);
 });
 let autoSaveTimer;
 document.addEventListener('input',scheduleAutoSave);
@@ -2057,7 +2091,7 @@ async function recoverFoundData(){
  feedback.textContent=detail.result.added?detail.result.added+' registro(s) recuperado(s) neste aparelho. Os dados que já estavam salvos foram mantidos.':'Os registros encontrados já estão disponíveis neste aparelho.';
  }catch(error){feedback.textContent='Recuperação pendente: '+error.message;}
 }
-async function logout(){setAccess(false);await client.auth.signOut();await refresh()}
+async function logout(){if(window.GESTAO_CLOUD_ONLY&&(localStorage.getItem(localKey+'-auto-sync-pending')||window.GESTAO_RADIO_DIRTY)){msg('Aguarde a confirmação da gravação antes de sair.');return;}setAccess(false);await client.auth.signOut();if(window.GESTAO_CLOUD_ONLY){location.reload();return;}await refresh()}
 async function load(){msg('Consultando nuvem…');const {data:row,error}=await client.from('gestao_dados').select('conteudo,atualizado_em').eq('id','templo').maybeSingle();if(error){msg('Falha ao consultar. Execute o SQL de configuração: '+errorText(error));return;}if(!row){msg('Ainda não há dados na nuvem. O administrador deve enviar um backup.');return;}if(!confirm('Substituir os dados deste aparelho pelos dados da nuvem? Faça um backup local antes.')){await refresh();return;}localStorage.setItem(localKey,JSON.stringify(row.conteudo));location.reload()}
 async function upload(){
  if(role!=='admin')return;
@@ -2108,10 +2142,10 @@ try{revisions=JSON.parse(localStorage.getItem(metaKey)||'{}');pending=new Set(JS
 for(const r of records)if(!revisions[r.id])pending.add(r.id);
 function persistMeta(){localStorage.setItem(metaKey,JSON.stringify(revisions));localStorage.setItem(pendingKey,JSON.stringify([...pending]));}
 const priorSelectChange=select.onchange;select.onchange=()=>{priorSelectChange();form.dataset.cloudRecord=id;form.dataset.cloudBase=String(revisions[id]||0);};
-function queueCloud(record){if(!window.notebookAPI)return;if(form.dataset.cloudRecord===record.id)revisions[record.id]=Number(form.dataset.cloudBase||0);pending.add(record.id);persistMeta();void syncCloud();}
+function queueCloud(record){if(!window.notebookAPI&&!window.GESTAO_CLOUD_ONLY)return;if(form.dataset.cloudRecord===record.id)revisions[record.id]=Number(form.dataset.cloudBase||0);pending.add(record.id);persistMeta();void syncCloud();}
 form.addEventListener('input',()=>{editDirty=true;window.GESTAO_RADIO_DIRTY=true;});
 async function syncCloud(){
- if(!window.notebookAPI){
+ if(!window.notebookAPI&&!window.GESTAO_CLOUD_ONLY){
   syncText.textContent='Nuvem desativada. Fichas preservadas neste aparelho; abra o servidor do notebook para sincronizar.';
   return;
  }
@@ -2126,30 +2160,27 @@ async function syncCloud(){
    }else{records=records.filter(x=>x.id!==r.id).concat(r);revisions[r.id]=item.revision;}
   }
   localStorage.setItem(key,JSON.stringify(records));persistMeta();list();
-  let copied=false;
+  
   for(const recordId of [...pending]){
    let record=records.find(x=>x.id===recordId);if(!record){pending.delete(recordId);continue;}
    const snapshot=JSON.stringify(record);
    let save=await radioTransport('/api/radiestesia',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({record,revision:revisions[recordId]||0})});
    if(save.status===409){
-    const copy=JSON.parse(JSON.stringify(records.find(x=>x.id===recordId)||record));copy.id=crypto.randomUUID();copy.values.numeroProntuario=(copy.values.numeroProntuario||'')+' (cópia '+copy.id.slice(0,6)+')';
-    records=records.filter(x=>x.id!==recordId).concat(copy);pending.delete(recordId);pending.add(copy.id);if(id===recordId){id=copy.id;form.dataset.cloudRecord=copy.id;form.dataset.cloudBase='0';document.getElementById('rf-number').value=copy.values.numeroProntuario;}
-    localStorage.setItem(key,JSON.stringify(records));persistMeta();copied=true;
-    continue;
+    throw Error('Ficha alterada em outro aparelho. Confira a versão da nuvem antes de salvar.');
    }
-   if(!save.ok)throw Error('Não foi possível enviar as fichas. Elas continuam salvas neste aparelho.');
+   if(!save.ok)throw Error('Ficha pendente. Mantenha a página aberta e tente novamente.');
    const result=await save.json();revisions[recordId]=result.revision;if(id===recordId){form.dataset.cloudRecord=recordId;form.dataset.cloudBase=String(result.revision);}
    if(JSON.stringify(records.find(x=>x.id===recordId))===snapshot)pending.delete(recordId);
    persistMeta();
   }
-  list();syncText.textContent=copied?'Houve alterações simultâneas. Sua edição foi preservada como cópia e será enviada na próxima sincronização.':pending.size?'Há alterações aguardando envio.':'Sincronizado com '+remote.email+' · '+new Date().toLocaleTimeString('pt-BR');
+  list();syncText.textContent=pending.size?'Há alterações aguardando envio.':'Sincronizado com '+remote.email+' · '+new Date().toLocaleTimeString('pt-BR');
  }catch(err){syncText.textContent=err.message+' Tentaremos novamente automaticamente.';}
  finally{syncing=false;}
 }
 window.GESTAO_RADIO_SYNC=syncCloud;
 const radioSyncButton=document.getElementById('rf-sync-now');
 radioSyncButton.onclick=()=>void syncCloud();
-if(!window.notebookAPI){radioSyncButton.disabled=true;radioSyncButton.textContent='Nuvem desativada';}
+if(!window.notebookAPI&&!window.GESTAO_CLOUD_ONLY){radioSyncButton.disabled=true;radioSyncButton.textContent='Nuvem desativada';}
 window.addEventListener('online',()=>void syncCloud());
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)void syncCloud();});
 setInterval(()=>{if(!document.hidden)void syncCloud();},10000);

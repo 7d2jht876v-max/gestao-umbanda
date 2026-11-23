@@ -1,41 +1,38 @@
-"""Protect the cloud-write opt-out without changing saved user records."""
-
+"""Regressions for the hosted cloud-only application."""
+import subprocess
 import unittest
 from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-class CloudDisabledTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.html = (ROOT / 'index.html').read_text(encoding='utf-8')
-
-    def test_main_sync_and_medium_publication_require_notebook(self):
-        self.assertIn("const localNotebookSync=typeof window.notebookAPI==='function';", self.html)
-        self.assertIn('async function publishMediumData(){\nif(!localNotebookSync)', self.html)
-        self.assertIn('async function synchronizeDevices(push=false,manual=false){\n if(!localNotebookSync)', self.html)
-        self.assertIn("root.querySelector('#cloud-device-sync').onclick=()=>localNotebookSync?void synchronizeDevices(true,true):toggleNotebookConnection();", self.html)
-        self.assertIn("for(const selector of ['#medium-publish','#medium-provision'])", self.html)
-
-    def test_public_sync_button_prepares_safe_local_transfer(self):
-        self.assertIn('🔄 Sincronizar notebook e iPhone', self.html)
-        self.assertIn("format:'gestao-transferencia-notebook'", self.html)
-        self.assertIn('async function exportForNotebook()', self.html)
-        self.assertIn("address.origin+'/configurar'", self.html)
-        self.assertIn('A transferência não ocorre automaticamente entre endereços diferentes.', self.html)
-
-    def test_medium_agenda_is_saved_on_device_without_remote_upsert(self):
-        self.assertIn("const personalAgendaStorageKey='gestao-agenda-pessoal-'+user.id;", self.html)
-        self.assertIn('if(!localNotebookSync){\n const stored=readPersonalAgenda();', self.html)
-        self.assertIn('await window.GESTAO_STORAGE_FLUSH?.();', self.html)
-
-    def test_radiesthesia_disables_cloud_transport_but_preserves_local_records(self):
-        self.assertIn('function queueCloud(record){if(!window.notebookAPI)return;', self.html)
-        self.assertIn('async function syncCloud(){\n if(!window.notebookAPI)', self.html)
-        self.assertIn("radioSyncButton.textContent='Nuvem desativada';", self.html)
-
-
-if __name__ == '__main__':
-    unittest.main()
+class CloudStorageTests(unittest.TestCase):
+    def test_hosted_storage_and_concurrent_updates(self):
+        subprocess.run(['node', '-e', """
+const {readFileSync} = require('node:fs');
+const assert = require('node:assert/strict');
+const vm = require('node:vm');
+const html = readFileSync('index.html', 'utf8');
+const scripts = [...html.matchAll(/<script\\b[^>]*>([\\s\\S]*?)<\\/script>/gi)].map(match => match[1]);
+for (const script of scripts) new vm.Script(script);
+const context = vm.createContext({
+  window: {}, location: {hostname: '7d2jht876v-max.github.io'},
+  document: {createElement: () => ({}), head: {append() {}}, documentElement: {dataset: {}}}
+});
+const storageScript = scripts.find(script => script.includes('window.GESTAO_STORAGE_READY='));
+vm.runInContext(storageScript.slice(storageScript.indexOf('window.GESTAO_STORAGE_READY=')), context);
+(async () => {
+  const store = await context.window.GESTAO_STORAGE_READY;
+  store.setItem('gestao-umbanda-v1', 'example');
+  assert.equal(store.getItem('gestao-umbanda-v1'), 'example');
+  store.removeItem('gestao-umbanda-v1');
+  assert.equal(store.getItem('gestao-umbanda-v1'), null);
+  vm.runInContext(html.slice(html.indexOf('function syncCanonical('),html.indexOf('function createSyncDelta(')), context);
+  const doc = value => ({section:[{id:'same', attachment:value}]});
+  const original = doc('old'), modified = doc('new');
+  const saved = context.mergeDeviceData(original, modified, original).data;
+  assert.equal(saved.section[0].attachment, 'new');
+  assert.equal(context.mergeDeviceData(saved, modified, original).data.section.length, 1);
+  assert.throws(() => context.mergeDeviceData(saved, doc('other'), original), /simultânea/);
+})().catch(error => {console.error(error); process.exitCode=1;});
+"""], cwd=ROOT, check=True)
