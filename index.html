@@ -165,13 +165,22 @@ window.GESTAO_STORAGE_READY=(async()=>{
 const native=window.localStorage,cache=new Map();let db;
 const managed=key=>/^gestao[-_]/i.test(String(key));
 try{
-db=await new Promise((resolve,reject)=>{
- const request=indexedDB.open('gestao-umbanda-storage-v1');
+const openStorage=version=>new Promise((resolve,reject)=>{
+ const name='gestao-umbanda-storage-v1';
+ const request=version===undefined?indexedDB.open(name):indexedDB.open(name,version);
+ let blocked=false;
  request.onupgradeneeded=()=>{if(!request.result.objectStoreNames.contains('values'))request.result.createObjectStore('values');};
- request.onsuccess=()=>{const connection=request.result;connection.onversionchange=()=>connection.close();resolve(connection);};
+ request.onsuccess=()=>{const connection=request.result;if(blocked){connection.close();return;}connection.onversionchange=()=>connection.close();resolve(connection);};
  request.onerror=()=>reject(request.error);
- request.onblocked=()=>reject(Error('Outra janela está bloqueando a abertura do banco.'));
+ request.onblocked=()=>{blocked=true;reject(Error('Outra janela está bloqueando a abertura do banco.'));};
 });
+let connection=await openStorage();
+if(!connection.objectStoreNames.contains('values')){
+ const nextVersion=connection.version+1;
+ connection.close();
+ connection=await openStorage(nextVersion);
+}
+db=connection;
 await new Promise((resolve,reject)=>{const tx=db.transaction('values','readonly'),request=tx.objectStore('values').openCursor();request.onsuccess=()=>{const cursor=request.result;if(cursor){cache.set(cursor.key,cursor.value);cursor.continue();}};tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);});
 const legacy=[];for(let i=0;i<native.length;i++){const key=native.key(i);if(managed(key)&&!cache.has(key))legacy.push([key,native.getItem(key)]);}
 if(legacy.length){await new Promise((resolve,reject)=>{const tx=db.transaction('values','readwrite');for(const [key,value] of legacy)tx.objectStore('values').put(value,key);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);});for(const [key,value] of legacy){cache.set(key,value);if(native.getItem(key)===value)native.removeItem(key);}}

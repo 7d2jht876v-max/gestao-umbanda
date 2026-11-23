@@ -16,7 +16,22 @@ $('reset-form').onsubmit=async e=>{e.preventDefault();if(!confirm('Redefinir a s
 $('out').onclick=async()=>{await call('/api/logout',{});await refresh();};
 $('export').onclick=async()=>{try{const data=await call('/api/export',{});download(data,'backup-notebook-'+new Date().toISOString().slice(0,10)+'.json');message('Cópia preparada. Guarde também os arquivos de dados/backups para preservar contas e agendas.');}catch(e){message(e.message);}};
 function download(data,name){const url=URL.createObjectURL(new Blob([JSON.stringify(data)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);}
-async function restoreLocal(storage){const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('gestao-umbanda-storage-v1',1);r.onupgradeneeded=()=>r.result.createObjectStore('values');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});try{await new Promise((resolve,reject)=>{const tx=db.transaction('values','readwrite');for(const [key,value] of Object.entries(storage)){if(/^gestao[-_]/i.test(key)&&!/(device-sync|before-device|upload-delta|auto-sync-pending|sync-retry|supabase-revisions|supabase-pending)/i.test(key))tx.objectStore('values').put(String(value),key);}tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);});}finally{db.close();}}
+async function restoreLocal(storage){const openStorage=version=>new Promise((resolve,reject)=>{
+ const name='gestao-umbanda-storage-v1';
+ const request=version===undefined?indexedDB.open(name):indexedDB.open(name,version);
+ let blocked=false;
+ request.onupgradeneeded=()=>{if(!request.result.objectStoreNames.contains('values'))request.result.createObjectStore('values');};
+ request.onsuccess=()=>{const connection=request.result;if(blocked){connection.close();return;}connection.onversionchange=()=>connection.close();resolve(connection);};
+ request.onerror=()=>reject(request.error);
+ request.onblocked=()=>{blocked=true;reject(Error('Outra janela está bloqueando a abertura do banco.'));};
+});
+let connection=await openStorage();
+if(!connection.objectStoreNames.contains('values')){
+ const nextVersion=connection.version+1;
+ connection.close();
+ connection=await openStorage(nextVersion);
+}
+const db=connection;try{await new Promise((resolve,reject)=>{const tx=db.transaction('values','readwrite');for(const [key,value] of Object.entries(storage)){if(/^gestao[-_]/i.test(key)&&!/(device-sync|before-device|upload-delta|auto-sync-pending|sync-retry|supabase-revisions|supabase-pending)/i.test(key))tx.objectStore('values').put(String(value),key);}tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);});}finally{db.close();}}
 $('import').onclick=async()=>{const file=$('import-file').files[0];if(!file){message('Selecione um arquivo JSON primeiro.');return;}const button=$('import');button.disabled=true;try{if(file.size>52428800)throw Error('O backup ultrapassa 50 MB.');const original=JSON.parse(await file.text());let body=original;let storage={};if(original.format==='gestao-transferencia-notebook'){storage=original.storage||{};body={records:JSON.parse(storage['gestao-umbanda-v1']||'{}'),radio:JSON.parse(storage['gestao-umbanda-radiestesia-fichas-v1']||'[]')};const aux={};for(const suffix of ['_sessoes_exu_status_v1','_sessoes_cigana_status_v1','_financeiro_extra_status_v1'])if(storage['gestao-umbanda-v1'+suffix])aux[suffix]=JSON.parse(storage['gestao-umbanda-v1'+suffix]);if(Object.keys(aux).length)body.records._sync_financial_status=aux;body.legacyStorage=storage;}
 if(!body.records||Array.isArray(body.records))throw Error('Selecione um backup completo do Gestão Umbanda.');message('Importando. Mantenha esta página aberta…');const result=await call('/api/import',body);
 // Only hydrate auxiliary browser settings. Server is authoritative for merged records and radio.
