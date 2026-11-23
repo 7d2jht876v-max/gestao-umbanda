@@ -987,20 +987,24 @@ $('view').insertAdjacentHTML('afterbegin',summary);
 
 const categoryValueConfig=el=>el.matches('.finance-exu-status')?{map:exuStatus,storage:exuKey,key:el.dataset.exuKey}:el.matches('.finance-cigana-status')?{map:ciganaStatus,storage:ciganaKey,key:el.dataset.ciganaKey}:{map:extraFinanceStatus,storage:extraFinanceKey,key:el.dataset.extraKey};
 const categoryValueBoxes=()=>[...$('finance-medium-list').querySelectorAll('.finance-category-year-rows[data-category="exu"],.finance-category-year-rows[data-category="loja"],.finance-camarinha-values,.finance-category-year-rows[data-category="sessao-cigana"],.finance-category-year-rows[data-category="sessao-cosme"],.finance-category-year-rows[data-category="seguranca-ano"],.finance-category-year-rows[data-category="ancestrais"]')];
-const updateCategoryValueTotals=()=>categoryValueBoxes().forEach(box=>{let total=0,paid=0,pending=0;box.querySelectorAll('.finance-category-value').forEach(input=>{const amount=debtCents(input.value)||0;total+=amount;const status=input.closest('.finance-due-row').querySelector('select').value;if(status==='Pago')paid+=amount;else if(status==='Pendente')pending+=amount;});box.querySelector('.finance-category-value-total').textContent='Total: '+debtMoney(total)+' · Pago: '+debtMoney(paid)+' · Pendente: '+debtMoney(pending);});
+const updateCategoryValueTotals=()=>categoryValueBoxes().forEach(box=>{let total=0,paid=0,pending=0;box.querySelectorAll('.finance-category-value').forEach(input=>{const amount=debtCents(input.value)||0;total+=amount;const select=input.closest('.finance-due-row').querySelector('select');if(box.matches('.finance-camarinha-values')){const remaining=camarinhaRemaining(select,amount);paid+=amount-remaining;pending+=remaining;return;}const status=select.value;if(status==='Pago')paid+=amount;else if(status==='Pendente')pending+=amount;});box.querySelector('.finance-category-value-total').textContent='Total: '+debtMoney(total)+' · Pago: '+debtMoney(paid)+' · Pendente: '+debtMoney(pending);});
 categoryValueBoxes().forEach(box=>{box.querySelectorAll('.finance-due-row').forEach(row=>{const select=row.querySelector('select'),config=categoryValueConfig(select),input=document.createElement('input');input.type='text';input.inputMode='decimal';input.className='finance-category-value';input.style.setProperty('width','125px','important');input.value=(Number(config.map['valor|'+config.key])||0).toFixed(2).replace('.',',');input.setAttribute('aria-label','Valor de '+select.getAttribute('aria-label'));input.placeholder='0,00';input.autocomplete='off';input.setAttribute('aria-label',row.closest('.finance-camarinha-values')?'Valor editável da camarinha':'Valor editável do lançamento');row.append(input);});const total=document.createElement('p');total.className='finance-category-value-total';total.setAttribute('aria-live','polite');box.append(total);});
-updateCategoryValueTotals();
 const camarinhaPaymentsKey=KEY+'_camarinha_pagamentos_v1';
 let camarinhaPayments={};try{camarinhaPayments=JSON.parse(localStorage.getItem(camarinhaPaymentsKey)||'{}')||{}}catch(e){}
 const saveCamarinhaPayments=()=>{localStorage.setItem(camarinhaPaymentsKey,JSON.stringify(camarinhaPayments));save();};
 const moneyBR=cents=>(cents/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const camarinhaRemaining=(status,value)=>{
+ if(status.value==='Pago')return 0;
+ const payments=camarinhaPayments[status.dataset.extraKey]||[];
+ const paid=payments.reduce((sum,p)=>sum+(Number(p.cents)||0),0);
+ return Math.max(0,value-paid);
+};
+updateCategoryValueTotals();
 const updateCamarinhaBalance=row=>{
  const box=row.closest('.finance-camarinha-values');
  const status=row.querySelector('.finance-extra-status');
  const value=debtCents(row.querySelector('.finance-category-value').value)||0;
- const payments=camarinhaPayments[status.dataset.extraKey]||[];
- const paid=payments.reduce((sum,p)=>sum+(Number(p.cents)||0),0);
- const balance=status.value==='Pago'?0:Math.max(0,value-paid);
+ const balance=camarinhaRemaining(status,value);
  row.querySelector('.camarinha-balance').textContent='Falta para quitar: R$ '+moneyBR(balance);
  const filter=box.querySelector('.camarinha-balance-filter');
  const choice=filter.value;
@@ -1040,14 +1044,14 @@ $('finance-medium-list').addEventListener('click',e=>{
   form.innerHTML='<label>Data do pagamento <input type="date" class="camarinha-new-date" required></label><label>Valor (R$) <input type="text" inputmode="decimal" placeholder="0,00" class="camarinha-new-value" required></label><button type="button" class="camarinha-save-payment">Salvar pagamento</button>';
   area.append(form);form.querySelector('.camarinha-new-date').value=new Date().toLocaleDateString('en-CA');return;
  }
- if(del){if(!confirm('Excluir este pagamento da camarinha?'))return;(camarinhaPayments[key]||[]).splice(Number(del.dataset.index),1);saveCamarinhaPayments();camarinhaRender(row);}
+ if(del){if(!confirm('Excluir este pagamento da camarinha?'))return;(camarinhaPayments[key]||[]).splice(Number(del.dataset.index),1);saveCamarinhaPayments();camarinhaRender(row);updateCategoryValueTotals();refreshMediumCategorySummary();}
 });
 $('finance-medium-list').addEventListener('click',e=>{
  if(!e.target.closest('.camarinha-save-payment'))return;
  const row=e.target.closest('.finance-due-row'),form=row.querySelector('.camarinha-new-form');
  const date=form.querySelector('.camarinha-new-date').value,amount=debtCents(form.querySelector('.camarinha-new-value').value);
  if(!date||amount===null||amount<=0){alert('Informe uma data e um valor maior que zero.');return;}
- const key=row.querySelector('.finance-extra-status').dataset.extraKey; (camarinhaPayments[key]??=[]).push({date,cents:amount});saveCamarinhaPayments();camarinhaRender(row);
+ const key=row.querySelector('.finance-extra-status').dataset.extraKey; (camarinhaPayments[key]??=[]).push({date,cents:amount});saveCamarinhaPayments();camarinhaRender(row);updateCategoryValueTotals();refreshMediumCategorySummary();
 });
 // Manter os valores das camarinhas editáveis no iPhone sem recriar o campo durante a digitação.
 $('finance-medium-list').addEventListener('focusin',e=>{const input=e.target;if(input.matches('.finance-camarinha-values .finance-category-value'))input.select();});
@@ -1073,7 +1077,7 @@ $('finance-medium-list').addEventListener('focusout',event=>{
 });
 
 const mediumCategoryAmounts=box=>{
-const totals=new Map(),add=(category,line,input)=>{const cents=debtCents(input.value)||0;if(!totals.has(category))totals.set(category,{paid:0,pending:0,upcoming:0});const t=totals.get(category),status=line.querySelector('select').value;t[status==='Pago'?'paid':status==='Pendente'?'pending':'upcoming']+=cents;};
+const totals=new Map(),add=(category,line,input)=>{const cents=debtCents(input.value)||0;if(!totals.has(category))totals.set(category,{paid:0,pending:0,upcoming:0});const t=totals.get(category),select=line.querySelector('select'),status=select.value;if(category==='Camarinhas'){const remaining=camarinhaRemaining(select,cents);t.paid+=cents-remaining;t.pending+=remaining;return;}t[status==='Pago'?'paid':status==='Pendente'?'pending':'upcoming']+=cents;};
 box.querySelectorAll('.finance-year-months:not([hidden]) .finance-due-value').forEach(input=>add('Mensalidades',input.closest('.finance-due-row'),input));
 const labels={exu:'Sessão de Exu',loja:'Gastos loja','sessao-cigana':'Sessão cigana','sessao-cosme':'Sessão Cosme','seguranca-ano':'Segurança do ano',ancestrais:'Ancestrais'};
 box.querySelectorAll('.finance-category-year-rows:not([hidden])').forEach(year=>year.querySelectorAll('.finance-category-value').forEach(input=>add(labels[year.dataset.category]||year.dataset.category,input.closest('.finance-due-row'),input)));
