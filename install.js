@@ -64,6 +64,33 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', scheduleFinancialColors, {once:true});
   else scheduleFinancialColors();
   window.addEventListener('pageshow',scheduleFinancialColors);
+
+  // Realce amarelo dos controles de abertura de link e barra de navegação.
+  const highlightNavigation = () => {
+    if (!document.getElementById('xango-navigation-yellow')) {
+      const style = document.createElement('style');
+      style.id = 'xango-navigation-yellow';
+      style.textContent = `
+        html { scrollbar-color: #ffdf45 #70452d; }
+        ::-webkit-scrollbar { width: 9px; height: 9px; }
+        ::-webkit-scrollbar-thumb { background: #ffdf45; border-radius: 10px; }
+        ::-webkit-scrollbar-track { background: #70452d; }
+        nav button, nav a, [role="tab"], [role="tablist"] button { color: #ffdf45 !important; font-weight: 800 !important; }
+      `;
+      document.head.appendChild(style);
+    }
+    document.querySelectorAll('button,a').forEach(el => {
+      if (el.dataset.xangoLinkYellow) return;
+      if (/abrir link de instala[cç][aã]o/i.test(el.textContent || '')) {
+        el.style.setProperty('color','#ffdf45','important');
+        el.style.setProperty('font-weight','800','important');
+        el.dataset.xangoLinkYellow = '1';
+      }
+    });
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded',highlightNavigation,{once:true});
+  else highlightNavigation();
+  window.addEventListener('pageshow',highlightNavigation);
   // Atualiza o aplicativo instalado ao abrir ou retornar a ele.
   // Não altera dados, credenciais ou mecanismos de sincronização.
   if (!('serviceWorker' in navigator) || location.protocol !== 'https:') return;
