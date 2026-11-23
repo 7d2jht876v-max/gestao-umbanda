@@ -307,7 +307,7 @@ const category=value=>({'Sessão de Exu':'Sessão Exu','Sessão de Cosme':'Sess�
 const period=row=>/^\d{4}-\d{2}$/.test(String(row.mes||''))?String(row.mes):String(row.data||'').slice(0,7);
 const identity=row=>category(row.tipo)+'|'+String(row.medium||'').trim().toLocaleLowerCase('pt-BR')+'|'+period(row);
 const controlled=new Set(controls.map(identity));
-const additional=(()=>{let saved={};try{saved=JSON.parse(storage.getItem(key+'_camarinha_pagamentos_v1')||'{}')||{}}catch(e){}const rows=[];for(const [id,payments] of Object.entries(saved)){if(!Array.isArray(payments))continue;const marker='|Camarinha|',at=id.lastIndexOf(marker);if(at<0)continue;const medium=id.slice(0,at);for(const payment of payments){const cents=Number(payment?.cents),date=String(payment?.date||'');if(!Number.isFinite(cents)||cents<=0||!/^\d{4}-\d{2}-\d{2}$/.test(date))continue;rows.push({tipo:'Camarinhas',medium,mes:date.slice(0,7),data:date,valor:cents/100,pagamento:'Sim',descricao:'Pagamento adicional '+id.slice(at+marker.length)});}}return rows;})();
+const additional=(()=>{let saved={};try{saved=JSON.parse(storage.getItem(key+'_camarinha_pagamentos_v1')||'{}')||{}}catch(e){}const rows=[];for(const [id,payments] of Object.entries(saved)){if(!Array.isArray(payments))continue;const marker='|Camarinha|',at=id.lastIndexOf(marker);if(at<0)continue;const medium=id.slice(0,at);for(const payment of payments){const cents=Number(payment?.cents),date=String(payment?.date||'');if(!Number.isFinite(cents)||cents<=0||!/^\d{4}-\d{2}-\d{2}$/.test(date))continue;rows.push({tipo:'Camarinhas',medium,mes:date.slice(0,7),data:date,valor:cents/100,pagamento:'Sim',camarinhaId:id,descricao:'Pagamento adicional '+id.slice(at+marker.length)});}}return rows;})();
 return controls.map(row=>({...row,tipo:category(row.tipo)})).concat((records['💰 Financeiro']||[]).map(row=>({...row,tipo:category(row.tipo)})).filter(row=>!controlled.has(identity(row))),additional);
 }
 
@@ -351,6 +351,27 @@ entries=summaryRows.filter(row=>row.tipo!=='Saída'&&(row.pagamento==='Sim'||(ro
 expenses=summaryRows.filter(row=>row.tipo==='Saída').reduce((sum,row)=>sum+Math.round(money(row.valor)*100),0)/100;
 const summaryCategories=[...new Set([...homeFinanceCategories.map(([,key])=>key),...summaryRows.map(row=>row.tipo)])];
 const summaryTotals=new Map(financeCategoryTotals(summaryRows));
+// As camarinhas numeradas têm saldo acumulado, inclusive entre meses.
+const camarinhaCharges=new Map();
+for(const row of homeControlRows){
+ if(row.tipo!=='Camarinhas'||!/^Camarinha [0-9]+$/.test(row.mes))continue;
+ const id=row.medium+'|Camarinha|'+row.mes;
+ camarinhaCharges.set(id,{total:Math.round(money(row.valor)*100),paid:0,settled:row.pagamento==='Sim'});
+}
+for(const row of homeSourceRows){
+ const charge=camarinhaCharges.get(row.camarinhaId);
+ if(charge)charge.paid+=Math.round(money(row.valor)*100);
+}
+const separateRows=summaryRows.filter(row=>row.tipo==='Camarinhas'&&!camarinhaCharges.has(row.camarinhaId));
+const camarinhaTotals=new Map(financeCategoryTotals(separateRows)).get('Camarinhas')||{count:0,paid:0,pending:0,unconfirmed:0};
+for(const charge of camarinhaCharges.values()){
+ if(charge.total<=0)continue;
+ const paid=charge.settled?charge.total:Math.min(charge.total,charge.paid);
+ camarinhaTotals.count++;
+ camarinhaTotals.paid+=paid;
+ camarinhaTotals.pending+=charge.total-paid;
+}
+summaryTotals.set('Camarinhas',camarinhaTotals);
 const categoryHtml=summaryCategories.map(name=>{const t=summaryTotals.get(name)||{count:0,paid:0,pending:0,unconfirmed:0};return '<div class="dash-line"><span>'+esc(name)+' <small class="muted">('+t.count+')</small><small style="display:block">Pago: '+fmt(t.paid/100)+' · Pendente: '+fmt(t.pending/100)+(t.unconfirmed?' · Sem confirmação: '+fmt(t.unconfirmed/100):'')+'</small></span><strong>'+fmt((t.paid+t.pending+t.unconfirmed)/100)+'</strong></div>';}).join('');
 const date=x=>{if(!x)return 'Sem data';const p=x.split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:x};
 const tile=(name,value,go,detail)=>'<button type="button" class="dash-tile" data-go="'+go+'"><span class="dash-label">'+name+'</span><strong class="dash-value">'+esc(value)+'</strong><small>'+detail+'</small></button>';
