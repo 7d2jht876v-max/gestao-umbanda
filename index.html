@@ -982,7 +982,9 @@ const updateCamarinhaBalance=row=>{
  const balance=status.value==='Pago'?0:Math.max(0,value-paid);
  row.querySelector('.camarinha-balance').textContent='Falta para quitar: R$ '+moneyBR(balance);
  const filter=box.querySelector('.camarinha-balance-filter');
- row.style.display=filter?.value==='abertas' && balance===0?'none':'';
+ const choice=filter.value;
+ const visible=!choice || (choice==='abertas'?balance>0:choice===row.dataset.camarinhaLabel);
+ row.style.display=visible?'':'none';
 };
 const camarinhaRender=row=>{
  const sel=row.querySelector('.finance-extra-status');if(!sel)return;
@@ -995,6 +997,12 @@ const camarinhaRender=row=>{
 $('finance-medium-list').querySelectorAll('.finance-camarinha-values').forEach(box=>{
  const label=document.createElement('label');
  label.innerHTML='Filtrar camarinhas <select class="camarinha-balance-filter"><option value="">Todas</option><option value="abertas">Com valor a quitar</option></select>';
+ const select=label.querySelector('select');
+ box.querySelectorAll('.finance-due-row').forEach(row=>{
+  const name=row.querySelector('span').textContent.trim();
+  row.dataset.camarinhaLabel=name;
+  select.add(new Option(name,name));
+ });
  box.prepend(label);
  label.addEventListener('change',()=>box.querySelectorAll('.finance-due-row').forEach(updateCamarinhaBalance));
  box.addEventListener('change',event=>{
