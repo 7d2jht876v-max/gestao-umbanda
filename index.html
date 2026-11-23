@@ -366,7 +366,7 @@ const separateRows=summaryRows.filter(row=>row.tipo==='Camarinhas'&&!camarinhaCh
 const camarinhaTotals=new Map(financeCategoryTotals(separateRows)).get('Camarinhas')||{count:0,paid:0,pending:0,unconfirmed:0};
 for(const charge of camarinhaCharges.values()){
  if(charge.total<=0)continue;
- const paid=charge.settled?charge.total:Math.min(charge.total,charge.paid);
+ const paid=charge.settled&&charge.paid===0?charge.total:Math.min(charge.total,charge.paid);
  camarinhaTotals.count++;
  camarinhaTotals.paid+=paid;
  camarinhaTotals.pending+=charge.total-paid;
@@ -994,9 +994,9 @@ let camarinhaPayments={};try{camarinhaPayments=JSON.parse(localStorage.getItem(c
 const saveCamarinhaPayments=()=>{localStorage.setItem(camarinhaPaymentsKey,JSON.stringify(camarinhaPayments));save();};
 const moneyBR=cents=>(cents/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const camarinhaRemaining=(status,value)=>{
- if(status.value==='Pago')return 0;
  const payments=camarinhaPayments[status.dataset.extraKey]||[];
  const paid=payments.reduce((sum,p)=>sum+(Number(p.cents)||0),0);
+ if(paid===0 && status.value==='Pago')return 0;
  return Math.max(0,value-paid);
 };
 updateCategoryValueTotals();
@@ -1343,7 +1343,7 @@ const pick=(row,keys)=>Object.fromEntries(keys.filter(k=>row[k]!==undefined).map
 const shared=(tab,keys)=>arr(tab).map(r=>pick(r,keys));
 return {
 resumoFinanceiro:dashboardFinanceSourceRows(source,localStorage,localKey).filter(own),
-camarinhasResumo:(()=>{const statusKey=localKey+'_financeiro_extra_status_v1',paymentsKey=localKey+'_camarinha_pagamentos_v1';let statuses={},payments={};try{statuses=JSON.parse(localStorage.getItem(statusKey)||'{}')||{}}catch(e){}try{payments=JSON.parse(localStorage.getItem(paymentsKey)||'{}')||{}}catch(e){}return Array.from({length:9},(_,i)=>{const label='Camarinha '+(i+1),id=name+'|Camarinha|'+label,base=Math.max(0,Math.round((Number(statuses['valor|'+id])||0)*100)),list=Array.isArray(payments[id])?payments[id]:[],paid=list.reduce((n,p)=>n+(Number.isFinite(Number(p.cents))?Math.max(0,Number(p.cents)):0),0);return {nome:label,valor:base/100,pago:paid/100,pendente:Math.max(0,base-paid)/100,status:statuses[id]||'Pendente'};});})(),
+camarinhasResumo:(()=>{const statusKey=localKey+'_financeiro_extra_status_v1',paymentsKey=localKey+'_camarinha_pagamentos_v1';let statuses={},payments={};try{statuses=JSON.parse(localStorage.getItem(statusKey)||'{}')||{}}catch(e){}try{payments=JSON.parse(localStorage.getItem(paymentsKey)||'{}')||{}}catch(e){}return Array.from({length:9},(_,i)=>{const label='Camarinha '+(i+1),id=name+'|Camarinha|'+label,base=Math.max(0,Math.round((Number(statuses['valor|'+id])||0)*100)),list=Array.isArray(payments[id])?payments[id]:[],paid=list.reduce((n,p)=>n+(Number.isFinite(Number(p.cents))?Math.max(0,Number(p.cents)):0),0);const received=paid>0?Math.min(base,paid):statuses[id]==='Pago'?base:0;return {nome:label,valor:base/100,pago:received/100,pendente:(base-received)/100,status:base>0&&received===base?'Pago':'Pendente'};});})(),
 inadimplencias:arr('📋 Inadimplências').filter(row=>!!name&&norm(row.nome)===name).map(row=>pick(row,['mensalidade','loja','camarinha','sessaoExu','sessaoEspecial'])),
 agenda:arr('📆 Agenda diária').filter(own).map(r=>pick(r,['data','hora','rotina','realizada','observacoes'])),
 etica:shared('📜 Código de ética do templo',['texto']),
