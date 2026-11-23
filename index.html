@@ -1969,7 +1969,7 @@ async function synchronizeDevices(push=false,manual=false){
  deviceSyncBusy=true;const pendingAtStart=localStorage.getItem(localKey+'-auto-sync-pending');const button=root.querySelector('#cloud-device-sync');
  if(button)button.disabled=true;
  const controller=new AbortController();
- const bounded=(operation,label,ms=65000)=>new Promise((resolve,reject)=>{const timer=setTimeout(()=>{controller.abort();reject(Error(label+' demorou demais. Confira a internet e tente novamente.'));},ms);Promise.resolve(operation).then(value=>{clearTimeout(timer);resolve(value);},error=>{clearTimeout(timer);reject(error);});});
+ const bounded=(operation,label,ms=150000)=>new Promise((resolve,reject)=>{const timer=setTimeout(()=>{controller.abort();reject(Error(label+' demorou demais. Confira a internet e tente novamente.'));},ms);Promise.resolve(operation).then(value=>{clearTimeout(timer);resolve(value);},error=>{clearTimeout(timer);reject(error);});});
  if(push)msg('Preparando sincronização…');
  try{
   if(push&&window.GESTAO_UNSAVED_FORM){document.getElementById('entry')?.requestSubmit();if(window.GESTAO_UNSAVED_FORM)throw Error('Preencha os campos obrigatórios e salve o cadastro antes de sincronizar.');}
@@ -2035,12 +2035,12 @@ async function synchronizeDevices(push=false,manual=false){
    if(!transfer||transfer.digest!==digest||transfer.expected!==expected||!Number.isInteger(transfer.next)||transfer.next<0||!transfer.started||Date.now()-transfer.started>86400000){transfer={id:crypto.randomUUID(),digest,expected,next:0,started:Date.now()};}
    const size=196608,total=Math.ceil(bytes.length/size);
    const partRPC=async(name,args)=>{
-    for(let attempt=0;attempt<3;attempt++){
+    for(let attempt=0;attempt<4;attempt++){
      const abort=new AbortController();let timer;
      try{
-      const result=await Promise.race([client.rpc(name,args).abortSignal(abort.signal),new Promise((_,reject)=>{timer=setTimeout(()=>{abort.abort();reject(Error('Tempo de espera esgotado. O envio será retomado automaticamente.'));},60000);})]);
+      const result=await Promise.race([client.rpc(name,args).abortSignal(abort.signal),new Promise((_,reject)=>{timer=setTimeout(()=>{abort.abort();reject(Error('Tempo de espera esgotado após 150 segundos. O envio será retomado automaticamente sem repetir as partes confirmadas.'));},150000);})]);
       if(result.error)throw result.error;return result.data;
-     }catch(error){if(attempt===2||['40001','42501','22023','PGRST202','57014','55P03','53300','08006'].includes(error.code)||name==='concluir_gestao_delta')throw error;msg('Conexão interrompida. Repetindo apenas a parte pendente…');await new Promise(resolve=>setTimeout(resolve,1000*(attempt+1)));}
+     }catch(error){if(attempt===3||['40001','42501','22023','PGRST202','57014','55P03','53300','08006'].includes(error.code)||name==='concluir_gestao_delta')throw error;msg('Conexão interrompida. Repetindo apenas a parte pendente…');await new Promise(resolve=>setTimeout(resolve,1000*(attempt+1)));}
      finally{clearTimeout(timer);}
     }
    };
