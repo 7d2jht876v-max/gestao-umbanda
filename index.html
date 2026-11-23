@@ -1269,17 +1269,51 @@ function showRecoveryForm(){
 recovering=true;
 if(!recoveryReady){msg('Validando o link de recuperação. Aguarde…');controls.innerHTML='';return;}
 msg('Link validado. Crie uma nova senha para sua conta.');
-controls.innerHTML='<form id="cloud-recover"><label>Nova senha (mínimo 8 caracteres)</label><input id="cloud-newpass" type="password" autocomplete="new-password" minlength="8" required><label>Confirmar nova senha</label><input id="cloud-confirmpass" type="password" autocomplete="new-password" minlength="8" required><button style="margin-top:12px">Salvar nova senha</button></form>';
-controls.querySelector('form').onsubmit=async e=>{
+controls.innerHTML='<form id="cloud-recover"><label>Nova senha (mínimo 8 caracteres)</label><input id="cloud-newpass" type="password" autocomplete="new-password" minlength="8" required><label>Confirmar nova senha</label><input id="cloud-confirmpass" type="password" autocomplete="new-password" minlength="8" required><button id="cloud-save-password" style="margin-top:12px">Salvar nova senha</button></form>';
+const form=controls.querySelector('#cloud-recover');
+let submitting=false;
+form.onsubmit=async e=>{
 e.preventDefault();
+if(submitting)return;
 const p=root.querySelector('#cloud-newpass').value,c=root.querySelector('#cloud-confirmpass').value;
 if(p!==c){msg('As senhas não coincidem.');return;}
-const {data:sessionData,error:sessionError}=await client.auth.getSession();
-if(sessionError||!sessionData.session){recoveryReady=false;controls.innerHTML='';msg('O link de recuperação não criou uma sessão válida ou expirou. Abra um novo link de recuperação no Safari e solicite outro e-mail se necessário.');return;}
-msg('Atualizando senha…');
-const {error}=await client.auth.updateUser({password:p});
-if(error){msg('Não foi possível alterar: '+errorText(error));return;}
-recovering=false;recoveryReady=false;history.replaceState(null,'',location.pathname);msg('Senha alterada com sucesso.');await refresh();
+if(p.length<8){msg('A senha precisa ter pelo menos 8 caracteres.');return;}
+submitting=true;
+const saveButton=form.querySelector('#cloud-save-password');
+saveButton.disabled=true;saveButton.textContent='Salvando senha…';
+try{
+ const {data:sessionData,error:sessionError}=await client.auth.getSession();
+ if(sessionError||!sessionData.session){
+  recoveryReady=false;controls.innerHTML='';
+  msg('A sessão de recuperação expirou ou não é válida. Solicite um novo link de recuperação.');
+  return;
+ }
+ msg('Enviando a alteração de senha ao servidor…');
+ const {error}=await client.auth.updateUser({password:p});
+ if(error)throw error;
+ recovering=false;recoveryReady=false;
+ history.replaceState(null,'',location.pathname);
+ msg('Senha alterada com sucesso. Faça login se necessário.');
+ await refresh();
+}catch(error){
+ const errorMessage=errorText(error);
+ const gatewayError=error?.status===504||error?.status===502||error?.status===503||/HTTP (502|503|504)|gateway|timeout|tempo de espera/i.test(errorMessage);
+ if(gatewayError){
+  msg('O servidor de autenticação não confirmou a alteração (HTTP 502/503/504 ou tempo esgotado). Ela pode ou não ter sido realizada. Para evitar tentativas duplicadas, verifique o acesso com a nova senha antes de tentar novamente.');
+  form.querySelector('#cloud-newpass').value='';
+  form.querySelector('#cloud-confirmpass').value='';
+  controls.insertAdjacentHTML('beforeend','<button type="button" id="cloud-verify-login" style="margin-top:10px;background:#375b78">Verificar acesso pelo login</button>');
+  controls.querySelector('#cloud-verify-login').onclick=()=>{recovering=false;recoveryReady=false;history.replaceState(null,'',location.pathname);formLogin();msg('Entre com seu e-mail e a nova senha para verificar se a alteração foi concluída. Se não entrar, solicite outra recuperação depois de verificar a conexão.');};
+  saveButton.textContent='Verifique o login antes de reenviar';
+  saveButton.disabled=true;
+  return;
+ }
+ msg('Não foi possível alterar a senha: '+errorMessage);
+}finally{
+ submitting=false;
+ if(saveButton.isConnected&&!saveButton.disabled){saveButton.textContent='Salvar nova senha';}
+ if(saveButton.isConnected&&!controls.querySelector('#cloud-verify-login')){saveButton.disabled=false;saveButton.textContent='Salvar nova senha';}
+}
 };
 }
 async function initializeRecovery(){
