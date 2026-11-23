@@ -1753,31 +1753,40 @@ function toggleNotebookConnection(){
  }
  guide.hidden=!guide.hidden;if(!guide.hidden)guide.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
-async function readCloudSnapshot(){
- const read=async(numero,version)=>{
-  const {data,error}=await client.rpc('ler_gestao_parte',{numero,versao_esperada:version}).abortSignal(AbortSignal.timeout(60000));
-  if(error)throw Error(error.message);
-  return data;
- };
- const first=await read(0,null);
- if(!first?.versao||!Number.isInteger(first.partes)||first.partes<1||first.partes>200||!Number.isInteger(first.bytes)||first.bytes<1)throw Error('A nuvem informou um tamanho inválido.');
- const chunks=new Array(first.partes);
- function append(part,index){
-  if(part?.versao!==first.versao||part.numero!==index||part.partes!==first.partes||part.bytes!==first.bytes||typeof part.payload!=='string')throw Error('A leitura dos cadastros ficou incompleta.');
-  chunks[index]=Uint8Array.from(atob(part.payload),c=>c.charCodeAt(0));
+let snapshotDownload=null;
+async function readCloudSnapshot(userId){
+ if(snapshotDownload?.owner!==userId)snapshotDownload={owner:userId,chunks:[],version:null,bytes:0,total:0};
+ const state=snapshotDownload;
+ for(let index=state.chunks.length;!state.total||index<state.total;index++){
+  let part;
+  for(let attempt=0;attempt<3;attempt++){
+   const label=state.total?(index+1)+' de '+state.total:'1';
+   msg('Carregando cadastros e anexos: parte '+label+(attempt?' · nova tentativa '+(attempt+1):'')+'…');
+   try{
+    const {data,error}=await client.rpc('ler_gestao_parte',{numero:index,versao_esperada:state.version}).abortSignal(AbortSignal.timeout(120000));
+    if(error)throw error;
+    part=data;
+    break;
+   }catch(error){
+    if(error.code==='40001'){snapshotDownload=null;throw Error('Os dados foram atualizados. Recarregue a versão mais recente.');}
+    if(error.code==='42501'||attempt===2)throw Error('Não foi possível receber a parte '+label+'. '+state.chunks.length+' parte(s) recebida(s). Mantenha esta aba aberta e toque em Retomar carregamento.');
+    await new Promise(resolve=>setTimeout(resolve,1500*(attempt+1)));
+   }
+  }
+  if(!part?.versao||part.numero!==index||!Number.isInteger(part.partes)||part.partes<1||part.partes>200||!Number.isInteger(part.bytes)||part.bytes<1||typeof part.payload!=='string'||(state.version&&(part.versao!==state.version||part.bytes!==state.bytes||part.partes!==state.total))){
+   snapshotDownload=null;throw Error('A versão recebida mudou. Recarregue os cadastros.');
+  }
+  const chunk=Uint8Array.from(atob(part.payload),c=>c.charCodeAt(0));
+  if(chunk.length!==Math.min(393216,part.bytes-index*393216)||part.partes!==Math.ceil(part.bytes/393216))throw Error('Parte incompleta. Retome o carregamento.');
+  state.chunks.push(chunk);
+  state.version=part.versao;state.bytes=part.bytes;state.total=part.partes;
  }
- append(first,0);
- for(let i=1;i<first.partes;i+=2){
-  msg('Carregando cadastros e anexos: '+i+' de '+first.partes+' partes.');
-  const indices=i+1<first.partes?[i,i+1]:[i];
-  const parts=await Promise.all(indices.map(index=>read(index,first.versao)));
-  parts.forEach((part,n)=>append(part,indices[n]));
- }
- const blob=new Blob(chunks);
- if(blob.size!==first.bytes)throw Error('O tamanho recebido difere do informado pela nuvem.');
+ const blob=new Blob(state.chunks);
+ if(blob.size!==state.bytes){snapshotDownload=null;throw Error('Tamanho do cadastro inválido.');}
+ snapshotDownload=null;
  const conteudo=JSON.parse(await blob.text());
- if(!conteudo||typeof conteudo!=='object'||Array.isArray(conteudo)||!Array.isArray(conteudo['👥 Médiuns']))throw Error('A nuvem retornou um cadastro em formato inesperado.');
- return {conteudo,atualizado_em:first.versao};
+ if(!Array.isArray(conteudo?.['👥 Médiuns']))throw Error('A nuvem retornou um cadastro em formato inesperado.');
+ return {conteudo,atualizado_em:state.version};
 }
 async function refresh(authenticatedUser){try{if(recovering){showRecoveryForm();return;}
 const identity=authenticatedUser?{data:{user:authenticatedUser}}:await accessTimeout(client.auth.getUser(),'verificar sua sessão');
@@ -1790,10 +1799,10 @@ if(window.GESTAO_CLOUD_ONLY){
  role=null;
  controls.replaceChildren();
  let row;
- try{row=await readCloudSnapshot();}
+ try{row=await readCloudSnapshot(user.id);}
  catch(error){
   msg('Falha ao carregar os cadastros: '+errorText(error));
-  const retry=document.createElement('button');retry.textContent='Recarregar cadastros';
+  const retry=document.createElement('button');retry.textContent='Retomar carregamento';
   retry.onclick=()=>{retry.disabled=true;void refresh();};controls.replaceChildren(retry);return;
  }
  role='admin';
@@ -2181,6 +2190,7 @@ const priorSelectChange=select.onchange;select.onchange=()=>{priorSelectChange()
 function queueCloud(record){if(!window.notebookAPI&&!window.GESTAO_CLOUD_ONLY)return;if(form.dataset.cloudRecord===record.id)revisions[record.id]=Number(form.dataset.cloudBase||0);pending.add(record.id);persistMeta();void syncCloud();}
 form.addEventListener('input',()=>{editDirty=true;window.GESTAO_RADIO_DIRTY=true;});
 async function syncCloud(){
+ if(window.GESTAO_CLOUD_ONLY&&document.documentElement.hasAttribute('data-cloud-locked'))return;
  if(!window.notebookAPI&&!window.GESTAO_CLOUD_ONLY){
   syncText.textContent='Nuvem desativada. Fichas preservadas neste aparelho; abra o servidor do notebook para sincronizar.';
   return;
