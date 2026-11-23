@@ -2127,12 +2127,21 @@ async function synchronizeDevices(push=false,manual=false){
 // Evita sincronizações repetidas que bloqueiam a interface no iPhone.
 // A sincronização manual permanece disponível; alterações pendentes não são descartadas.
 let autoSyncTimer;
+// Evita baixar novamente o cadastro central completo (incluindo anexos)
+// a cada 15 segundos quando não há alterações pendentes.
+let lastBackgroundCloudRead=Date.now();
 function resumeDeviceSync(){
  if(document.hidden||deviceSyncBusy||mediumPublishBusy||window.GESTAO_UNSAVED_FORM)return;
- if(!localStorage.getItem(localKey+'-auto-sync-pending')){if(window.GESTAO_CLOUD_ONLY)void synchronizeDevices(false);return;}
+ if(!localStorage.getItem(localKey+'-auto-sync-pending')){
+  if(window.GESTAO_CLOUD_ONLY&&Date.now()-lastBackgroundCloudRead>=300000){
+   lastBackgroundCloudRead=Date.now();
+   void synchronizeDevices(false);
+  }
+  return;
+ }
  void synchronizeDevices(true);
 }
-setInterval(resumeDeviceSync,15000);
+setInterval(resumeDeviceSync,60000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)resumeDeviceSync();});
 window.addEventListener('gestao-dados-salvos',()=>{
  if(window.GESTAO_CLOUD_ONLY)msg('Alteração aguardando confirmação da nuvem. Mantenha esta página aberta.');
