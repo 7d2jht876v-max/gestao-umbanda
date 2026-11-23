@@ -1753,6 +1753,32 @@ function toggleNotebookConnection(){
  }
  guide.hidden=!guide.hidden;if(!guide.hidden)guide.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
+async function readCloudSnapshot(){
+ const read=async(numero,version)=>{
+  const {data,error}=await client.rpc('ler_gestao_parte',{numero,versao_esperada:version}).abortSignal(AbortSignal.timeout(60000));
+  if(error)throw Error(error.message);
+  return data;
+ };
+ const first=await read(0,null);
+ if(!first?.versao||!Number.isInteger(first.partes)||first.partes<1||first.partes>200||!Number.isInteger(first.bytes)||first.bytes<1)throw Error('A nuvem informou um tamanho inválido.');
+ const chunks=new Array(first.partes);
+ function append(part,index){
+  if(part?.versao!==first.versao||part.numero!==index||part.partes!==first.partes||part.bytes!==first.bytes||typeof part.payload!=='string')throw Error('A leitura dos cadastros ficou incompleta.');
+  chunks[index]=Uint8Array.from(atob(part.payload),c=>c.charCodeAt(0));
+ }
+ append(first,0);
+ for(let i=1;i<first.partes;i+=2){
+  msg('Carregando cadastros e anexos: '+i+' de '+first.partes+' partes.');
+  const indices=i+1<first.partes?[i,i+1]:[i];
+  const parts=await Promise.all(indices.map(index=>read(index,first.versao)));
+  parts.forEach((part,n)=>append(part,indices[n]));
+ }
+ const blob=new Blob(chunks);
+ if(blob.size!==first.bytes)throw Error('O tamanho recebido difere do informado pela nuvem.');
+ const conteudo=JSON.parse(await blob.text());
+ if(!conteudo||typeof conteudo!=='object'||Array.isArray(conteudo)||!Array.isArray(conteudo['👥 Médiuns']))throw Error('A nuvem retornou um cadastro em formato inesperado.');
+ return {conteudo,atualizado_em:first.versao};
+}
 async function refresh(authenticatedUser){try{if(recovering){showRecoveryForm();return;}
 const identity=authenticatedUser?{data:{user:authenticatedUser}}:await accessTimeout(client.auth.getUser(),'verificar sua sessão');
 const {data:{user},error}=identity;if(error||!user){role=null;msg('Entre com seu e-mail e senha cadastrados no Supabase. Os dados atuais permanecem no iPhone.');formLogin();return;}
@@ -1761,8 +1787,16 @@ role=result.data.perfil;if(role!=='admin'){await showMediumPortal();return;}
 if(window.GESTAO_CLOUD_ONLY){
  setAccess(false);
  msg('Carregando cadastros e anexos da nuvem…');
- const {data:row,error:readError}=await client.from('gestao_dados').select('conteudo,atualizado_em').eq('id','templo').single();
- if(readError||!row?.conteudo)throw Error('Não foi possível carregar os cadastros da nuvem. Tente novamente.');
+ role=null;
+ controls.replaceChildren();
+ let row;
+ try{row=await readCloudSnapshot();}
+ catch(error){
+  msg('Falha ao carregar os cadastros: '+errorText(error));
+  const retry=document.createElement('button');retry.textContent='Recarregar cadastros';
+  retry.onclick=()=>{retry.disabled=true;void refresh();};controls.replaceChildren(retry);return;
+ }
+ role='admin';
  const baseKey=localKey+'-device-sync-base-'+user.id;
  const detail={records:row.conteudo,result:null};
  window.dispatchEvent(new CustomEvent('gestao-aplicar-sincronizacao',{detail}));
