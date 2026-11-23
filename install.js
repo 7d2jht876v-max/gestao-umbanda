@@ -38,7 +38,7 @@
       const container = parent.closest('div,article,section');
       if (!container) continue;
       const bg = getComputedStyle(container).backgroundColor;
-      const brown = /rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/.exec(bg);
+      const brown = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(bg);
       if (!brown || !(Number(brown[1]) > Number(brown[2])*1.12 && Number(brown[2]) > Number(brown[3])*1.12 && Number(brown[1]) < 180)) continue;
       if (titles.has(text.trim())) {nodes.push([node,'title']);continue;}
       if (/Pago no mês:|Em aberto no mês:|Em aberto no Financeiro|Débitos na Inadimplência:/.test(text)) nodes.push([node,'labels']);
@@ -49,7 +49,7 @@
       if (kind === 'title') {
         const span = document.createElement('span');span.className='xango-fin-title';span.textContent=node.nodeValue;fragment.appendChild(span);
       } else {
-        const parts = node.nodeValue.split(/(Pago no mês:\\s*R\\$\\s*[\\d.,]+|Em aberto no mês:\\s*R\\$\\s*[\\d.,]+|Em aberto no Financeiro|Débitos na Inadimplência:\\s*R\\$\\s*[\\d.,]+)/gi);
+        const parts = node.nodeValue.split(/(Pago no mês:\s*R\$\s*[\d.,]+|Em aberto no mês:\s*R\$\s*[\d.,]+|Em aberto no Financeiro|Débitos na Inadimplência:\s*R\$\s*[\d.,]+)/gi);
         for (const part of parts) {
           if (!part) continue;
           const cls = /^Pago no mês:/i.test(part)?'xango-fin-paid':/^(Em aberto|Débitos)/i.test(part)?'xango-fin-debt':'';
