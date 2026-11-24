@@ -624,7 +624,14 @@ document.addEventListener('click',async event=>{
  viewer.style.cssText='margin:12px 0;padding:12px;border:1px solid #cbded4;border-radius:10px;max-height:65vh;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere';
  viewer.textContent='Abrindo visualização…';card.append(viewer);
  try{
-  if(/\.docx$/i.test(name)){
+  if(/\.(xlsx|xls)$/i.test(name)){
+   if(!window.XLSX)await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';s.onload=resolve;s.onerror=()=>reject(Error('Visualizador Excel indisponível'));document.head.append(s);});
+   const book=window.XLSX.read(await (await fetch(url)).arrayBuffer(),{type:'array'});
+   viewer.textContent='';const select=document.createElement('select'),area=document.createElement('div');area.style.overflowX='auto';
+   for(const n of book.SheetNames){const o=document.createElement('option');o.value=n;o.textContent=n;select.append(o);}
+   const render=()=>{area.textContent='';const sheet=book.Sheets[select.value];const range=window.XLSX.utils.decode_range(sheet['!ref']||'A1');range.e.r=Math.min(range.e.r,range.s.r+499);range.e.c=Math.min(range.e.c,range.s.c+99);const rows=window.XLSX.utils.sheet_to_json(sheet,{header:1,range,raw:false,defval:''});const table=document.createElement('table');table.style.cssText='border-collapse:collapse;white-space:normal';for(const row of rows){const tr=table.insertRow();for(const value of row){const td=tr.insertCell();td.textContent=String(value??'');td.style.cssText='border:1px solid #ccc;padding:6px;min-width:60px';}}area.append(table);if(range.e.r<window.XLSX.utils.decode_range(sheet['!ref']||'A1').e.r){const p=document.createElement('p');p.textContent='Prévia limitada a 500 linhas. Baixe o original para ver tudo.';area.append(p);}};
+   viewer.append(select,area);select.onchange=render;render();
+  }else if(/\.docx$/i.test(name)){
    const mammoth=await gestaoLoadMammoth();
    const buffer=await (await fetch(url)).arrayBuffer();
    const result=await mammoth.extractRawText({arrayBuffer:buffer});
@@ -659,7 +666,7 @@ const raw=atob(match[2]),bytes=new Uint8Array(raw.length);
 for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
 const originalName=link.getAttribute('download')||'arquivo';
 const word=/\.(docx|doc)$/i.test(originalName);
-const mime=word?(originalName.toLowerCase().endsWith('.docx')?'application/vnd.openxmlformats-officedocument.wordprocessingml.document':'application/msword'):match[1];
+const mime=word?(originalName.toLowerCase().endsWith('.docx')?'application/vnd.openxmlformats-officedocument.wordprocessingml.document':'application/msword'):/\.xlsx$/i.test(originalName)?'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':/\.xls$/i.test(originalName)?'application/vnd.ms-excel':/\.pdf$/i.test(originalName)?'application/pdf':match[1];
 const file=new File([bytes],originalName,{type:mime});
 const opening=link.hasAttribute('data-open-attachment');
 const ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
