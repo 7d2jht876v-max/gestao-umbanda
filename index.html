@@ -1543,13 +1543,13 @@ const title=document.createElement('h4');title.textContent='Minhas Camarinhas �
 const controls=document.createElement('div');controls.style.cssText='display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:12px 0;padding:10px;background:#fff3e3;border-radius:12px';
 const filterLabel=document.createElement('label');filterLabel.textContent='Filtro: ';filterLabel.style.fontWeight='bold';
 const filter=document.createElement('select');filter.setAttribute('aria-label','Filtrar camarinhas');
-[['all','Todas'],['pending','Apenas com pendência'],['paid','Apenas pagas'],...ownCamarinhas.map((x,i)=>['item-'+i,String(x.nome||'Camarinha '+(i+1))])].forEach(([v,t])=>filter.add(new Option(t,v)));
+[['all','Todas'],['pending','Falta para quitar'],['paid','Apenas pagas'],...ownCamarinhas.map((x,i)=>['item-'+i,String(x.nome||'Camarinha '+(i+1))])].forEach(([v,t])=>filter.add(new Option(t,v)));
 filterLabel.append(filter);const search=document.createElement('input');search.type='search';search.placeholder='Buscar camarinha...';search.setAttribute('aria-label','Buscar camarinha');search.style.cssText='flex:1;min-width:150px;max-width:320px';controls.append(filterLabel,search);detail.append(controls);
 const list=document.createElement('div');detail.append(list);
 const renderCamarinhas=()=>{list.replaceChildren();let visible=0;
 ownCamarinhas.forEach((item,i)=>{const total=Math.max(0,Number(item.valor)||0),paid=Math.min(total,Math.max(0,Number(item.pago)||0)),remaining=Math.max(0,total-paid),state=String(item.status||'').trim().toLocaleLowerCase('pt-BR'),isUpcoming=state==='a vencer'||state==='sem confirmação'||state==='sem confirmacao',pending=isUpcoming?0:remaining,upcoming=isUpcoming?remaining:0;
-if(filter.value==='pending'&&pending<=0)return;
-if(filter.value==='paid'&&(total<=0||pending>0))return;
+if(filter.value==='pending'&&remaining<=0)return;
+if(filter.value==='paid'&&(total<=0||remaining>0))return;
 if(filter.value.startsWith('item-')&&filter.value!=='item-'+i)return;
 if(!String(item.nome||'').toLocaleLowerCase('pt-BR').includes(search.value.trim().toLocaleLowerCase('pt-BR')))return;
 visible++;
@@ -1558,7 +1558,7 @@ const heading=document.createElement('strong');heading.textContent='⌂ '+String
 const amounts=document.createElement('div');amounts.style.cssText='display:flex;flex-direction:column;gap:3px';
 const amount=document.createElement('strong');amount.textContent=currency(total);amount.style.color='#51250e';
 const paidLine=document.createElement('span');paidLine.textContent='Pago: '+currency(paid);paidLine.style.color='#16702a';
-const pendingLine=document.createElement('span');pendingLine.textContent=(isUpcoming?'A vencer: ':'Pendente: ')+currency(isUpcoming?upcoming:pending);pendingLine.style.color=isUpcoming?'#83591c':'#b31919';
+const pendingLine=document.createElement('span');pendingLine.textContent='Falta para quitar: '+currency(remaining);pendingLine.style.color=isUpcoming?'#83591c':'#b31919';
 amounts.append(amount,paidLine,pendingLine);card.append(heading,amounts);list.append(card);
 });
 if(!visible){const empty=document.createElement('p');empty.className='muted';empty.textContent='Nenhuma camarinha encontrada para este filtro.';list.append(empty);}
@@ -1577,7 +1577,7 @@ const financialGrid=document.createElement('div');financialGrid.className='mediu
 const totalsBox=document.createElement('div');totalsBox.className='my-finance-totals';financeSummary.append(totalsBox);
 function drawMyFinanceSummary(){
 financialGrid.replaceChildren();totalsBox.replaceChildren();
-let totalPaid=0,totalPending=0,totalUpcoming=0;
+let totalPaid=0,totalPending=0,totalUpcoming=0,totalCamarinhaBalance=0;
 for(const category of categories){
 const rows=financeRows.filter(row=>row.tipo===category&&(category==='Camarinhas'||String(row.mes||row.data||'').slice(0,4)===yearSelect.value));
 let paid=0,pending=0,upcoming=0;
@@ -1588,10 +1588,10 @@ for(const item of ownCamarinhas){const value=cents(item.valor),received=Math.min
 for(const row of rows){const value=cents(row.valor);const state=String(row.pagamento||row.status||'').trim().toLocaleLowerCase('pt-BR');if(state==='sim'||state==='pago'||state==='paga')paid+=value;else if(state==='não'||state==='nao'||state==='pendente')pending+=value;else upcoming+=value;}
 }
 const card=document.createElement('div');card.className='medium-finance-item';const title=document.createElement('strong');title.textContent=category;card.append(title);
-addLine(card,'Pago',currency(paid/100));addLine(card,'Pendente',currency(pending/100));addLine(card,'A vencer / sem confirmação',currency(upcoming/100));addLine(card,'Total',currency((paid+pending+upcoming)/100));financialGrid.append(card);
-totalPaid+=paid;totalPending+=pending;totalUpcoming+=upcoming;
+addLine(card,'Pago',currency(paid/100));if(category==='Camarinhas'){addLine(card,'Falta para quitar',currency((pending+upcoming)/100));totalCamarinhaBalance+=pending+upcoming;}else{addLine(card,'Pendente',currency(pending/100));addLine(card,'A vencer / sem confirmação',currency(upcoming/100));totalPending+=pending;totalUpcoming+=upcoming;}addLine(card,'Total',currency((paid+pending+upcoming)/100));financialGrid.append(card);
+totalPaid+=paid;
 }
-addLine(totalsBox,'Total pago',currency(totalPaid/100));addLine(totalsBox,'Total pendente',currency(totalPending/100));addLine(totalsBox,'Total a vencer / sem confirmação',currency(totalUpcoming/100));addLine(totalsBox,'Total geral',currency((totalPaid+totalPending+totalUpcoming)/100));
+addLine(totalsBox,'Total pago',currency(totalPaid/100));addLine(totalsBox,'Total pendente',currency(totalPending/100));addLine(totalsBox,'Total a vencer / sem confirmação',currency(totalUpcoming/100));addLine(totalsBox,'Total geral',currency((totalPaid+totalPending+totalUpcoming+totalCamarinhaBalance)/100));addLine(totalsBox,'Falta para quitar camarinhas',currency(totalCamarinhaBalance/100));
 }
 yearSelect.onchange=drawMyFinanceSummary;drawMyFinanceSummary();
 const profile=panel('👤 Meu cadastro');
