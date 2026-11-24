@@ -1770,18 +1770,31 @@ const publishButton=root.querySelector('#medium-publish');
 if(publishButton)publishButton.disabled=true;
 let completed=0,unchanged=0;
 try{
+async function retryPublication(operation){
+ for(let attempt=0;attempt<4;attempt++){
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),60000);
+  try{
+   const result=await operation(controller.signal);
+   if(result.error)throw Object.assign(new Error(result.error.message||'Falha na publicação'),result.error,{httpStatus:result.status});
+   return result;
+  }catch(error){
+   const status=Number(error.httpStatus||error.status||0);
+   const detail=String(error.message||error)+' '+String(error.code||'');
+   const temporary=[408,429,500,502,503,504].includes(status)||/load failed|failed to fetch|network|fetch failed|abort|timeout|57014|connection|timed out/i.test(detail)||error.name==='AbortError';
+   if(!temporary||attempt===3)throw error;
+   msg('Conexão instável. Reconectando ('+(attempt+1)+'/3). Envios concluídos preservados.');
+   await new Promise(resolve=>setTimeout(resolve,1500*Math.pow(2,attempt)));
+  }finally{clearTimeout(timer);}
+ }
+}
 for(const item of items){
-const {data:published,error:readError}=await client.from('portal_mediuns').select('dados').eq('email',item.email).maybeSingle();
-if(readError)throw readError;
-if(published&&syncCanonical(published.dados)===syncCanonical(item.dados)){unchanged++;continue;}
-msg('Publicando dados individuais: '+(completed+1)+' de '+items.length+'… Aguarde a conclusão.');
-const controller=new AbortController();
-const timer=setTimeout(()=>controller.abort(),60000);
-try{
-const {error}=await client.from('portal_mediuns').upsert([item],{onConflict:'email'}).abortSignal(controller.signal);
-if(error)throw error;
-completed++;
-}finally{clearTimeout(timer)}
+ msg('Conferindo dados individuais: '+(completed+unchanged+1)+' de '+items.length+'…');
+ const {data:published}=await retryPublication(signal=>client.from('portal_mediuns').select('dados').eq('email',item.email).abortSignal(signal).maybeSingle());
+ if(published&&syncCanonical(published.dados)===syncCanonical(item.dados)){unchanged++;continue;}
+ msg('Publicando dados individuais: '+(completed+unchanged+1)+' de '+items.length+'…');
+ await retryPublication(signal=>client.from('portal_mediuns').upsert([item],{onConflict:'email'}).abortSignal(signal));
+ completed++;
 }
 const axeCount=items.reduce((sum,item)=>sum+(item.dados.axes||[]).length+(item.dados.axesSemana||[]).length,0);
 msg('Cadastros individuais publicados: '+completed+' médium(ns) atualizado(s); '+unchanged+' sem alterações, com '+axeCount+' axé(s). Todos os axés de cada médium foram mantidos, inclusive com nomes repetidos. Cada médium deve entrar com o e-mail do cadastro.');
