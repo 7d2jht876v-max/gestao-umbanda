@@ -1282,6 +1282,7 @@ function setAccess(isAdmin){if(window.GESTAO_CLOUD_ONLY){if(isAdmin)delete docum
 setAccess(false);
 const localKey='gestao-umbanda-v1';
 let role=null;
+let activeAdminId=null;
 let recovering=false;
 let recoveryReady=false;
 client.auth.onAuthStateChange((event)=>{if(event==='PASSWORD_RECOVERY'){recovering=true;recoveryReady=true;setTimeout(showRecoveryForm,0)}});
@@ -1861,7 +1862,12 @@ const identity=authenticatedUser?{data:{user:authenticatedUser}}:await accessTim
 const {data:{user},error}=identity;if(error||!user){role=null;msg('Entre com seu e-mail e senha cadastrados no Supabase. Os dados atuais permanecem no iPhone.');formLogin();return;}
 const result=await accessTimeout(client.from('perfis').select('perfil').eq('id',user.id).single(),'carregar seu perfil');if(result.error){role=null;msg('Login realizado, mas o perfil não foi encontrado: '+errorText(result.error));controls.innerHTML='<button id="cloud-out">Sair</button>';root.querySelector('#cloud-out').onclick=logout;return;}
 role=result.data.perfil;if(role!=='admin'){await showMediumPortal();return;}
-if(window.GESTAO_CLOUD_ONLY){
+const pendingSync=!!localStorage.getItem(localKey+'-auto-sync-pending');
+ const knownBase=localStorage.getItem(localKey+'-device-sync-base-'+user.id);
+ const pendingOwner=localStorage.getItem(localKey+'-pending-auth-owner');
+ if(pendingSync&&((pendingOwner&&pendingOwner!==user.id)||(!pendingOwner&&!knownBase))){role=null;setAccess(false);msg('Há alterações locais pendentes de outra sessão ou sem base confirmada. Entre com a conta original. Nenhum dado foi substituído.');formLogin();return;}
+ activeAdminId=user.id;
+ if(window.GESTAO_CLOUD_ONLY&&!pendingSync){
  setAccess(false);
  msg('Carregando cadastros e anexos da nuvem…');
  role=null;
@@ -1920,7 +1926,7 @@ generate.onclick=generateInstallLink;
 copy.onclick=async()=>{try{if(!navigator.clipboard?.writeText)throw Error('Cópia manual');await navigator.clipboard.writeText(field.value);feedback.textContent='Link copiado!';}catch{field.focus();field.select();field.setSelectionRange(0,field.value.length);feedback.textContent='Link selecionado. Toque e segure no campo e escolha Copiar.';}};
 share.append(heading,generate,label,field,copy,link,feedback);controls.append(share);generateInstallLink();
 
-void synchronizeDevices(false);
+if(pendingSync){msg('Acesso restabelecido. Alterações locais preservadas; retomando sincronização…');void synchronizeDevices(true,true);}else void synchronizeDevices(false);
 }catch(error){role=null;setAccess(false);msg(errorText(error));formLogin();}
 }
 function syncCanonical(value){
@@ -2042,8 +2048,12 @@ async function synchronizeDevices(push=false,manual=false){
  try{
   if(push&&window.GESTAO_UNSAVED_FORM){document.getElementById('entry')?.requestSubmit();if(window.GESTAO_UNSAVED_FORM)throw Error('Preencha os campos obrigatórios e salve o cadastro antes de sincronizar.');}
   if(push&&window.GESTAO_RADIO_DIRTY){document.querySelector('[data-rf-save]')?.click();if(window.GESTAO_RADIO_DIRTY)throw Error('Confira e salve a ficha de Radiestesia antes de sincronizar.');}
-  const {data:session}=await bounded(client.auth.getSession(),'A validação da conta');const user=session.session?.user;
-  if(!user)throw Error('Entre com sua conta para sincronizar.');
+  const {data:session,error:sessionError}=await bounded(client.auth.getSession(),'A validação da conta');const user=session?.session?.user;
+  if(sessionError&&!/refresh_token_not_found|invalid refresh token|session_not_found|auth session missing/i.test((sessionError.code||'')+' '+(sessionError.message||'')))throw sessionError;
+  if(!user||sessionError||user.id!==activeAdminId){
+   if(push){localStorage.setItem(localKey+'-auto-sync-pending',pendingAtStart||String(Date.now()));if(activeAdminId)localStorage.setItem(localKey+'-pending-auth-owner',activeAdminId);}
+   role=null;setAccess(false);formLogin();msg('Sessão expirada. Entre novamente com a mesma conta. Dados locais e envios pendentes preservados.');return;
+  }
   const baseKey=localKey+'-device-sync-base-'+user.id;
   let base={};try{base=JSON.parse(localStorage.getItem(baseKey)||'{}')}catch{}
   const versionKey=baseKey+'-remote-version';
