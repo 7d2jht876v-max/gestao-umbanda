@@ -1554,7 +1554,7 @@ if(filter.value.startsWith('item-')&&filter.value!=='item-'+i)return;
 if(!String(item.nome||'').toLocaleLowerCase('pt-BR').includes(search.value.trim().toLocaleLowerCase('pt-BR')))return;
 visible++;
 const card=document.createElement('div');card.className='medium-finance-item';card.style.cssText='display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:12px 16px;margin:8px 0;border:1px solid #925322;border-radius:14px;background:#fffaf5';
-const heading=document.createElement('strong');heading.textContent='⌂ '+String(item.nome||'Camarinha '+(i+1));heading.style.cssText='color:#5a2b12;min-width:130px';
+const heading=document.createElement('strong');heading.textContent='⌂ '+String(item.nome||'Camarinha '+(i+1));heading.style.cssText='min-width:130px;font-weight:700';heading.style.setProperty('color','#000000','important');
 const amounts=document.createElement('div');amounts.style.cssText='display:flex;flex-direction:column;gap:3px';
 const amount=document.createElement('strong');amount.textContent=currency(total);amount.style.color='#51250e';
 const paidLine=document.createElement('span');paidLine.textContent='Pago: '+currency(paid);paidLine.style.color='#16702a';
