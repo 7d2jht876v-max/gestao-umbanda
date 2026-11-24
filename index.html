@@ -1591,7 +1591,7 @@ const card=document.createElement('div');card.className='medium-finance-item';co
 addLine(card,'Pago',currency(paid/100));if(category==='Camarinhas'){addLine(card,'Falta para quitar',currency((pending+upcoming)/100));totalCamarinhaBalance+=pending+upcoming;}else{addLine(card,'Pendente',currency(pending/100));addLine(card,'A vencer / sem confirmação',currency(upcoming/100));totalPending+=pending;totalUpcoming+=upcoming;}addLine(card,'Total',currency((paid+pending+upcoming)/100));financialGrid.append(card);
 totalPaid+=paid;
 }
-addLine(totalsBox,'Total pago',currency(totalPaid/100));addLine(totalsBox,'Total pendente',currency(totalPending/100));addLine(totalsBox,'Total a vencer / sem confirmação',currency(totalUpcoming/100));addLine(totalsBox,'Total geral',currency((totalPaid+totalPending+totalUpcoming+totalCamarinhaBalance)/100));addLine(totalsBox,'Falta para quitar camarinhas',currency(totalCamarinhaBalance/100));
+addLine(totalsBox,'Total pago',currency(totalPaid/100));addLine(totalsBox,'Total pendente',currency(totalPending/100));addLine(totalsBox,'Total a vencer / sem confirmação',currency(totalUpcoming/100));addLine(totalsBox,'Total geral',currency((totalPaid+totalPending+totalUpcoming+totalCamarinhaBalance)/100));
 }
 yearSelect.onchange=drawMyFinanceSummary;drawMyFinanceSummary();
 const profile=panel('👤 Meu cadastro');
