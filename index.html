@@ -1693,7 +1693,17 @@ recordsPanel('estudos','🎓 Estudos',[['tipo','Tipo'],['titulo','Título'],['li
 recordsPanel('axes','🌿 Axés',[['titulo','Axé'],['papelCor','Papel cor'],['bebida','Bebida'],['materiais','Materiais'],['comoPreparar','Como preparar']]);
 recordsPanel('escalaMesaExu','📋 Escala de axé para a mesa Exu',[['anexos','Fotos e arquivos','attachments'],['data','Data'],['medium','Médium responsável'],['titulo','Nome do axé'],['materiais','Materiais'],['observacoes','Observações']]);
 recordsPanel('axesSemana','📅 Axés da semana',[['titulo','Axé'],['papelCor','Papel cor'],['bebida','Bebida'],['materiais','Materiais'],['comoPreparar','Como preparar']]);
-const birthdays=recordsPanel('aniversariantes','🎂 Aniversariantes do templo',[['nome','Nome'],['diaMes','Aniversário']]);
+const birthdays=panel('🎂 Aniversariantes do templo');
+const birthdayRows=(Array.isArray(d.aniversariantes)?d.aniversariantes:[]).slice();
+const birthdayParts=r=>{const m=/^(\d{2})\/(\d{2})$/.exec(String(r.diaMes||''));return m&&+m[1]>=1&&+m[1]<=31&&+m[2]>=1&&+m[2]<=12?[+m[2],+m[1]]:[99,99];};
+birthdayRows.sort((a,b)=>birthdayParts(a)[0]-birthdayParts(b)[0]||birthdayParts(a)[1]-birthdayParts(b)[1]||String(a.nome||'').localeCompare(String(b.nome||''),'pt-BR'));
+const birthdayNow=new Date();const birthdayMonth=Number(new Intl.DateTimeFormat('pt-BR',{month:'numeric',timeZone:'America/Sao_Paulo'}).format(birthdayNow));
+const birthdayHeading=document.createElement('h3');birthdayHeading.textContent='🎉 Aniversariantes do mês — '+new Intl.DateTimeFormat('pt-BR',{month:'long',timeZone:'America/Sao_Paulo'}).format(birthdayNow);birthdayHeading.style.cssText='background:#79502f;color:#ffdf55;padding:12px;border-radius:10px';birthdays.append(birthdayHeading);
+const birthdayCurrent=birthdayRows.filter(r=>birthdayParts(r)[0]===birthdayMonth);
+function appendBirthday(row,target){const card=document.createElement('div');card.className='portal-entry';addLine(card,'Nome',row.nome);addLine(card,'Aniversário',row.diaMes);target.append(card);}
+if(!birthdayCurrent.length){const p=document.createElement('p');p.textContent='Nenhum aniversariante cadastrado neste mês.';birthdays.append(p);}else birthdayCurrent.forEach(r=>appendBirthday(r,birthdays));
+const birthdayAllHeading=document.createElement('h3');birthdayAllHeading.textContent='Todos os aniversariantes';birthdays.append(birthdayAllHeading);
+birthdayRows.forEach(r=>appendBirthday(r,birthdays));
 const birthdayNote=document.createElement('p');birthdayNote.className='muted';birthdayNote.textContent='Aniversários do templo: nome, dia e mês.';birthdays.append(birthdayNote);
 const traits=panel('📖 Características dos filhos de cada orixá');
 const traitNames=['Elegbará','Ogum','Iansã','Xangô','Obaluaê','Oxóssi','Ossaim','Nanã','Obá','Ewá','Oxum','Yemanjá','Oxumaré','Logun Edé','Oxalá'];
