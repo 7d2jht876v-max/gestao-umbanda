@@ -596,7 +596,7 @@ return payments;
 
 let debtAttachmentDraft=[],debtAttachmentReading=false;
 function debtAttachmentLinks(files){
-return (Array.isArray(files)?files:[]).filter(f=>f&&typeof f.url==='string'&&/^data:[a-z0-9.+\/-]+;base64,[A-Za-z0-9+/=]+$/i.test(f.url)).map(f=>{
+return (Array.isArray(files)?files:[]).filter(f=>f&&typeof f.url==='string'&&(/^data:[a-z0-9.+\/-]+;base64,[A-Za-z0-9+/=]+$/i.test(f.url)||window.GESTAO_STORAGE_REF?.(f.url))).map(f=>{
 const name=esc(f.nome||'Arquivo dos débitos'),url=esc(f.url);
 const image=/^data:image\/(?:jpeg|jpg|png|gif|webp|avif|bmp);base64,/i.test(f.url);
 const pdf=/^data:application\/pdf;base64,/i.test(f.url);
@@ -621,13 +621,14 @@ document.addEventListener('click',async event=>{
  const btn=event.target.closest?.('[data-preview-inline]');if(!btn)return;
  const card=btn.closest('.debt-attachment-preview');
  const link=card?.querySelector('[data-save-attachment]');if(!link)return;
- const url=link.getAttribute('href'),name=link.getAttribute('download')||'arquivo';
+ let url=link.getAttribute('href');const name=link.getAttribute('download')||'arquivo';
  let viewer=card.querySelector('.gestao-inline-viewer');
  if(viewer){viewer.remove();return;}
  viewer=document.createElement('div');viewer.className='gestao-inline-viewer';
  viewer.style.cssText='margin:12px 0;padding:12px;border:1px solid #cbded4;border-radius:10px;max-height:65vh;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere';
  viewer.textContent='Abrindo visualização…';card.append(viewer);
  try{
+  if(window.GESTAO_STORAGE_REF?.(url))url=await window.GESTAO_STORAGE_OPEN(url);
   if(/\.(xlsx|xls)$/i.test(name)){
    if(!window.XLSX)await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';s.onload=resolve;s.onerror=()=>reject(Error('Visualizador Excel indisponível'));document.head.append(s);});
    const book=window.XLSX.read(await (await fetch(url)).arrayBuffer(),{type:'array'});
@@ -664,7 +665,7 @@ link.dataset.busy='1';
 let feedback=link.parentElement.querySelector('[data-download-status]');
 if(!feedback){feedback=document.createElement('p');feedback.dataset.downloadStatus='';feedback.setAttribute('role','status');link.after(feedback);}
 try{
-const source=link.getAttribute('href'),match=/^data:([^;]+);base64,(.+)$/i.exec(source||'');
+const href=link.getAttribute('href'),source=window.GESTAO_STORAGE_REF?.(href)?await window.GESTAO_STORAGE_OPEN(href):href,match=/^data:([^;]+);base64,(.+)$/i.exec(source||'');
 if(!match)throw Error('O anexo não está disponível. Edite o cadastro e anexe o arquivo novamente.');
 const raw=atob(match[2]),bytes=new Uint8Array(raw.length);
 for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
@@ -723,12 +724,11 @@ localStorage.setItem(KEY,JSON.stringify(next));await window.GESTAO_STORAGE_FLUSH
 }
 
 function setupDebtAttachments(){
-debtAttachmentDraft=[];debtAttachmentReading=false;const panel=document.createElement('div');panel.style.gridColumn='1/-1';panel.innerHTML='<label for="debt-attachment-input">Foto ou arquivo dos débitos</label><input id="debt-attachment-input" type="file" multiple><p class="muted">Fotos grandes são reduzidas automaticamente. Limite de 2 MB por arquivo e 3 MB por cadastro. Toque em Salvar cadastro ou Salvar alterações para gravar.</p><p id="debt-attachment-status" role="status"></p><div id="debt-attachment-list"></div>';
+debtAttachmentDraft=[];debtAttachmentReading=false;const panel=document.createElement('div');panel.style.gridColumn='1/-1';panel.innerHTML='<label for="debt-attachment-input">Foto ou arquivo dos débitos</label><input id="debt-attachment-input" type="file" multiple><p class="muted">Arquivos enviados diretamente ao Storage privado. Até 50 MB por arquivo. Toque em Salvar cadastro ou Salvar alterações para confirmar o vínculo.</p><p id="debt-attachment-status" role="status"></p><div id="debt-attachment-list"></div>';
 $('entry').querySelector('.actions').before(panel);drawDebtAttachments();
 $('debt-attachment-input').onchange=async e=>{let files=[...e.target.files];if(!files.length)return;debtAttachmentReading=true;const input=e.target;input.disabled=true;const saveButton=$('save-entry');saveButton.disabled=true;const status=$('debt-attachment-status');status.textContent='Preparando anexos…';try{
-files=await Promise.all(files.map(prepareDebtPhoto));if(files.some(f=>f.size>2*1024*1024))throw Error('O arquivo excede 2 MB. Escolha um arquivo menor. Fotos JPG e PNG são reduzidas automaticamente.');
-if(debtAttachmentDraft.reduce((sum,f)=>sum+(f.tamanho||0),0)+files.reduce((sum,f)=>sum+f.size,0)>3*1024*1024)throw Error('Os anexos deste cadastro devem somar até 3 MB.');
-const added=[];for(const file of files){const raw=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(Error('Não foi possível ler '+file.name));reader.readAsDataURL(file);});const base64=String(raw).split(',')[1];added.push({nome:file.name,tamanho:file.size,url:'data:'+(file.type&&/^[a-z0-9.+\/-]+$/i.test(file.type)?file.type:'application/octet-stream')+';base64,'+base64});}
+if(files.some(f=>f.size>50*1024*1024))throw Error('Escolha arquivos de até 50 MB cada.');
+const added=[];for(const file of files){const url=await window.GESTAO_STORAGE_UPLOAD(file);added.push({nome:file.name,tamanho:file.size,url});}
 if(!input.isConnected)return;debtAttachmentDraft.push(...added);drawDebtAttachments();window.GESTAO_UNSAVED_FORM=true;debtAttachmentReading=false;captureProtectedDraft();status.textContent='Anexo(s) pronto(s). Salve o cadastro para gravar.';
 }catch(error){status.textContent=error.message;}finally{debtAttachmentReading=false;input.disabled=false;input.value='';saveButton.disabled=false;}
 };
@@ -785,7 +785,7 @@ if(current==='📋 Prontuário consulente radiestesia'){$('view').replaceChildre
 if(current==="📂 Exercícios das camarinhas"){
 const sectionKey=current;
 const folderNames=["1 - Camarinha","2 - Camarinha","3 - Camarinha","4 - Camarinha","5 - Camarinha","6 - Camarinha 3 orixás","7 - Camarinha 3 orixás","8 - Camarinha 3 orixás","9 - Camarinha orixá do corpo + Ifá + consagração","10 - Ogam"];
-$('view').innerHTML='<div class="card"><h2>📂 Exercícios das camarinhas</h2><p class="muted">Uso exclusivo do administrador. Abra uma pasta para incluir fotos e arquivos. Os anexos são enviados automaticamente. Se a conexão falhar, o envio será tentado novamente. Confira o resultado no Acesso seguro.</p><p class="muted">Limite de 2 MB por arquivo e 3 MB por envio. Fotos grandes são reduzidas automaticamente.</p><div id="camarinha-exercises-folders"></div></div>';
+$('view').innerHTML='<div class="card"><h2>📂 Exercícios das camarinhas</h2><p class="muted">Uso exclusivo do administrador. Abra uma pasta para incluir fotos e arquivos. Os anexos são enviados automaticamente. Se a conexão falhar, o envio será tentado novamente. Confira o resultado no Acesso seguro.</p><p class="muted">Storage privado: até 50 MB por arquivo.</p><div id="camarinha-exercises-folders"></div></div>';
 const host=$('camarinha-exercises-folders');
 folderNames.forEach((name,index)=>{
  const folder=String(index+1),box=document.createElement('details');box.className='card';
@@ -829,14 +829,9 @@ folderNames.forEach((name,index)=>{
   photoButton.disabled=fileButton.disabled=true;window.GESTAO_UNSAVED_FORM=true;status.textContent='Preparando anexos…';
   let before=null,addedIds=[];
   try{
-   files=await Promise.all(files.map(prepareDebtPhoto));
-   if(files.some(f=>f.size>2*1024*1024))throw Error('Escolha arquivos de até 2 MB.');
-   if(files.reduce((total,f)=>total+f.size,0)>3*1024*1024)throw Error('Envie até 3 MB por vez.');
+   if(files.some(f=>f.size>50*1024*1024))throw Error('Escolha arquivos de até 50 MB cada.');
    const attachments=[];
-   for(const f of files){
-    const raw=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(Error('Não foi possível ler '+f.name));reader.readAsDataURL(f);});
-    attachments.push({nome:f.name,tamanho:f.size,url:'data:'+(f.type&&/^[a-z0-9.+\/-]+$/i.test(f.type)?f.type:'application/octet-stream')+';base64,'+String(raw).split(',')[1]});
-   }
+   for(const f of files){status.textContent='Enviando e conferindo '+f.name+'…';attachments.push({nome:f.name,tamanho:f.size,url:await window.GESTAO_STORAGE_UPLOAD(f)});}
    const row={id:crypto.randomUUID(),pasta:folder,titulo:name,anexos:attachments,updatedAt:new Date().toISOString()};
    before=(data[sectionKey]||[]).slice();addedIds=[row.id];
    data[sectionKey]=before.concat(row);save();await verifySavedRow(sectionKey,row);
@@ -844,7 +839,7 @@ folderNames.forEach((name,index)=>{
   }catch(error){
    if(before){data[sectionKey]=(data[sectionKey]||[]).filter(r=>!addedIds.includes(r.id));try{save();await window.GESTAO_STORAGE_FLUSH();}catch{}}
    status.textContent='Não foi possível anexar: '+error.message;
-  }finally{input.value='';photoButton.disabled=fileButton.disabled=false;window.GESTAO_UNSAVED_FORM=false;}
+  }finally{input.value='';photoButton.disabled=fileButton.disabled=false;window.GESTAO_UNSAVED_FORM=false;if(addedIds.length)window.dispatchEvent(new Event('gestao-dados-salvos'));}
  };
  photo.onchange=attach;file.onchange=attach;box.append(summary,buttons,photo,file,status,list);host.append(box);draw();
 });
@@ -1169,7 +1164,7 @@ applyFinanceFilter();
 ativarAulas();filtroAulas();
 if(current==='📖 Características dos Orixás'){const stored=mergedOrixaCharacteristics();for(const [k] of fields){const input=$('f_'+k);if(input)input.value=stored[k]||'';}}
 if(current==='👥 Médiuns'){$('medium-summary-select').addEventListener('change',e=>showMediumFullSummary(e.target.value));$('entry').addEventListener('change',e=>{if(e.target.matches('.month-status')){e.target.classList.toggle('month-paid',e.target.value==='Pago');e.target.classList.toggle('month-pending',e.target.value!=='Pago');captureMonthlyGrid();}if(e.target.id==='monthly-year'){const year=e.target.value;if(/^(20|21)\d{2}$/.test(year))$('monthly-grid').innerHTML=monthlyGrid(year);}});}
-if(current==='🛡️ Pontos riscados dos guardiões'||current==='🌿 Pontos riscados orixás')$('upload_imagem').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;if(!file.type.startsWith('image/')){alert('Selecione uma imagem.');return}try{const img=new Image();const url=URL.createObjectURL(file);await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;img.src=url});const scale=Math.min(1,1000/Math.max(img.width,img.height));const canvas=document.createElement('canvas');canvas.width=Math.round(img.width*scale);canvas.height=Math.round(img.height*scale);canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);const encoded=canvas.toDataURL('image/jpeg',0.75);URL.revokeObjectURL(url);if(encoded.length>1100000)throw Error('Imagem muito grande');$('f_imagem').value=encoded;$('preview_imagem').innerHTML='<img src="'+encoded+'" alt="Prévia do ponto riscado">';}catch(err){alert('Não foi possível preparar a imagem: '+err.message)}});
+if(current==='🛡️ Pontos riscados dos guardiões'||current==='🌿 Pontos riscados orixás')$('upload_imagem').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;if(!file.type.startsWith('image/')){alert('Selecione uma imagem.');return}try{const img=new Image();const url=URL.createObjectURL(file);await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;img.src=url});const scale=Math.min(1,1000/Math.max(img.width,img.height));const canvas=document.createElement('canvas');canvas.width=Math.round(img.width*scale);canvas.height=Math.round(img.height*scale);canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',0.9));URL.revokeObjectURL(url);if(!blob)throw Error('Não foi possível preparar a imagem');const ref=await window.GESTAO_STORAGE_UPLOAD(blob);$('f_imagem').value=ref;$('preview_imagem').innerHTML='<img src="'+ref+'" alt="Prévia do ponto riscado">';$('entry').dispatchEvent(new Event('input',{bubbles:true}));}catch(err){alert('Não foi possível preparar a imagem: '+err.message)}});
 if(current==='📅 Sessões')$('entry').addEventListener('click',e=>{const confirmAll=e.target.closest('#confirm-all-mediums');if(confirmAll||e.target.closest('#select-all-mediums')){$('entry').querySelectorAll('.attendance-person').forEach(row=>{row.querySelector('.att-member').checked=true;if(confirmAll)row.querySelector('input[type=radio][value="Sim"]').checked=true});updateAttendanceTotals();$('entry').dispatchEvent(new Event('input',{bubbles:true}));}});
 if(current==='📅 Sessões'){$('entry').addEventListener('change',e=>{if(e.target.matches('.attendance-choices input[type=radio]'))e.target.closest('.attendance-person').querySelector('.att-member').checked=true;updateAttendanceTotals()});updateAttendanceTotals();}
 restoreProtectedDraft();syncScaleMediums();
@@ -1275,6 +1270,34 @@ const localNotebookSync=typeof window.notebookAPI==='function';
 const iphoneWriter=/iPhone/i.test(navigator.userAgent)&&!localNotebookSync;
 let desktopAdmin=false;
 const client=supa.createClient(cfg.url,cfg.publishableKey,{global:{fetch:(input,init)=>{const url=new URL(typeof input==='string'?input:input.url||String(input),location.href);const method=String(init?.method||input?.method||'GET').toUpperCase();if(desktopAdmin&&!['GET','HEAD','OPTIONS'].includes(method)&&!url.pathname.startsWith('/auth/v1/')&&!/\/rest\/v1\/rpc\/(ler_gestao_parte|ler_gestao_delta)$/.test(url.pathname))return Promise.reject(Error('Notebook: somente consulta. Faça alterações no iPhone.'));return window.fetch(input,init);}}});window.GESTAO_RADIO_CLIENT=client;
+
+const storageRef=/^gestao-storage:([a-f0-9]{64})$/;
+const storageBucket=client.storage.from('gestao-umbanda-arquivos');
+async function storageHash(blob){return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',await blob.arrayBuffer())),b=>b.toString(16).padStart(2,'0')).join('');}
+window.GESTAO_STORAGE_REF=source=>typeof source==='string'&&storageRef.test(source);
+window.GESTAO_STORAGE_OPEN=async source=>{
+ const match=storageRef.exec(String(source));if(!match)return source;
+ const {data,error}=await storageBucket.download('sha256/'+match[1]);if(error||!data)throw Error('Não foi possível abrir o arquivo privado. Confira a conexão e tente novamente.');
+ if(await storageHash(data)!==match[1])throw Error('Falha na conferência do arquivo.');
+ return await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(Error('Falha na leitura do arquivo.'));reader.readAsDataURL(data);});
+};
+window.GESTAO_STORAGE_UPLOAD=async file=>{
+ if(role!=='admin'||desktopAdmin)throw Error('Somente o administrador pode enviar arquivos.');
+ if(file.size>50*1024*1024)throw Error('Limite de 50 MB por arquivo neste aplicativo.');
+ const digest=await storageHash(file),path='sha256/'+digest;
+ let result=await storageBucket.download(path);
+ if(result.error||!result.data){const sent=await storageBucket.upload(path,file,{contentType:file.type||'application/octet-stream',upsert:false});result=await storageBucket.download(path);if(result.error||!result.data)throw Error(sent.error?.message||result.error?.message||'Não foi possível confirmar o arquivo na nuvem.');}
+ if(result.data.size!==file.size||await storageHash(result.data)!==digest)throw Error('O arquivo enviado não passou na conferência.');
+ return 'gestao-storage:'+digest;
+};
+function resolveStorageImages(){
+ for(const img of document.querySelectorAll('img[src^="gestao-storage:"]')){
+  if(img.dataset.storageLoading)continue;img.dataset.storageLoading='1';const source=img.getAttribute('src');
+  window.GESTAO_STORAGE_OPEN(source).then(url=>{if(img.isConnected&&img.getAttribute('src')===source)img.src=url;}).catch(()=>{img.alt='Arquivo privado indisponível. Atualize para tentar novamente.';});
+ }
+}
+let imageQueued=false;new MutationObserver(()=>{if(!imageQueued){imageQueued=true;queueMicrotask(()=>{imageQueued=false;resolveStorageImages();});}}).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['src']});
+
 const root=document.createElement('div');
 root.id='cloud-access';
 root.style.cssText='max-width:720px;margin:14px auto;padding:14px;background:#fff;border:2px solid #b8d2c8;border-radius:12px;font:15px system-ui';
@@ -1621,9 +1644,9 @@ const value=row[key];if(value===undefined||value===null||value==='')continue;
 if(type==='link'){
 try{const url=new URL(String(value));if(!['https:','http:'].includes(url.protocol))continue;const link=document.createElement('a');link.href=url.href;link.target='_blank';link.rel='noopener noreferrer';const isVideo=/v[ií]deo/i.test(String(row.tipo||''));const isDriveFolder=url.hostname==='drive.google.com'&&/^\/drive\/(?:u\/\d+\/)?folders\/[\w-]+\/?$/.test(url.pathname);const isDriveFile=url.hostname==='drive.google.com'&&/^\/file\/d\/[\w-]+/.test(url.pathname);if(isVideo&&isDriveFile){link.href='https://drive.google.com/file/d/'+url.pathname.split('/')[3]+'/preview';}link.textContent=isVideo?'▶ Assistir videoaulas online':label;link.className='study-watch';card.append(link);if(isVideo&&isDriveFolder){const note=document.createElement('p');note.className='muted';note.textContent='Escolha um vídeo na pasta do Google Drive e toque em reproduzir. Não é necessário baixar. O acesso depende das permissões da pasta.';card.append(note);}}catch{}
 }else if(type==='attachments'){
-for(const file of Array.isArray(value)?value:[]){if(!file||!/^data:[a-z0-9.+\/-]+;base64,[A-Za-z0-9+/=]+$/i.test(String(file.url||'')))continue;const wrap=document.createElement('div');if(/^data:image\/(jpeg|jpg|png|gif|webp|avif|bmp);base64,/i.test(file.url)){const img=document.createElement('img');img.src=file.url;img.alt=file.nome||'Foto do comunicado';img.loading='lazy';img.style.cssText='display:block;max-width:100%;max-height:600px;object-fit:contain;margin:12px auto';wrap.append(img);}if(/^data:application\/pdf;base64,/i.test(file.url)){const button=document.createElement('button');button.type='button';button.className='study-watch';button.textContent='Visualizar PDF: '+(file.nome||'Arquivo');const viewer=document.createElement('div');viewer.hidden=true;wrap.append(button,viewer);button.onclick=async()=>{if(!viewer.hidden){viewer.hidden=true;button.textContent='Visualizar PDF: '+(file.nome||'Arquivo');return;}viewer.hidden=false;button.textContent='Fechar PDF';if(viewer.dataset.ready)return;viewer.textContent='Carregando PDF…';try{const pdfjs=await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs');pdfjs.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';const bytes=Uint8Array.from(atob(file.url.split(',')[1]),c=>c.charCodeAt(0));const pdf=await pdfjs.getDocument({data:bytes,isEvalSupported:false}).promise;viewer.replaceChildren();for(let n=1;n<=pdf.numPages;n++){const page=await pdf.getPage(n);const base=page.getViewport({scale:1});const vp=page.getViewport({scale:Math.min(2,Math.max(1,(viewer.clientWidth||320)/base.width*2))});const canvas=document.createElement('canvas');canvas.width=Math.ceil(vp.width);canvas.height=Math.ceil(vp.height);canvas.style.cssText='display:block;width:100%;height:auto;margin:10px auto;background:white';viewer.append(canvas);await page.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;}viewer.dataset.ready='1';}catch(e){viewer.textContent='Não foi possível visualizar o PDF. Feche e tente novamente.';}};}else{const link=document.createElement('a');link.href=file.url;link.download=file.nome||'Arquivo';link.textContent='Baixar: '+(file.nome||'Arquivo');link.className='study-watch';wrap.append(link);}card.append(wrap);}
+for(const file of Array.isArray(value)?value:[]){if(file&&window.GESTAO_STORAGE_REF?.(file.url)){const wrap=document.createElement('div');wrap.className='debt-attachment-preview';const btn=document.createElement('button');btn.type='button';btn.dataset.previewInline='';btn.textContent='Visualizar: '+(file.nome||'Arquivo');const link=document.createElement('a');link.href=file.url;link.download=file.nome||'Arquivo';link.dataset.saveAttachment='';link.textContent='Baixar original';link.className='study-watch';wrap.append(btn,link);card.append(wrap);continue;}if(!file||!/^data:[a-z0-9.+\/-]+;base64,[A-Za-z0-9+/=]+$/i.test(String(file.url||'')))continue;const wrap=document.createElement('div');if(/^data:image\/(jpeg|jpg|png|gif|webp|avif|bmp);base64,/i.test(file.url)){const img=document.createElement('img');img.src=file.url;img.alt=file.nome||'Foto do comunicado';img.loading='lazy';img.style.cssText='display:block;max-width:100%;max-height:600px;object-fit:contain;margin:12px auto';wrap.append(img);}if(/^data:application\/pdf;base64,/i.test(file.url)){const button=document.createElement('button');button.type='button';button.className='study-watch';button.textContent='Visualizar PDF: '+(file.nome||'Arquivo');const viewer=document.createElement('div');viewer.hidden=true;wrap.append(button,viewer);button.onclick=async()=>{if(!viewer.hidden){viewer.hidden=true;button.textContent='Visualizar PDF: '+(file.nome||'Arquivo');return;}viewer.hidden=false;button.textContent='Fechar PDF';if(viewer.dataset.ready)return;viewer.textContent='Carregando PDF…';try{const pdfjs=await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs');pdfjs.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';const bytes=Uint8Array.from(atob(file.url.split(',')[1]),c=>c.charCodeAt(0));const pdf=await pdfjs.getDocument({data:bytes,isEvalSupported:false}).promise;viewer.replaceChildren();for(let n=1;n<=pdf.numPages;n++){const page=await pdf.getPage(n);const base=page.getViewport({scale:1});const vp=page.getViewport({scale:Math.min(2,Math.max(1,(viewer.clientWidth||320)/base.width*2))});const canvas=document.createElement('canvas');canvas.width=Math.ceil(vp.width);canvas.height=Math.ceil(vp.height);canvas.style.cssText='display:block;width:100%;height:auto;margin:10px auto;background:white';viewer.append(canvas);await page.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;}viewer.dataset.ready='1';}catch(e){viewer.textContent='Não foi possível visualizar o PDF. Feche e tente novamente.';}};}else{const link=document.createElement('a');link.href=file.url;link.download=file.nome||'Arquivo';link.textContent='Baixar: '+(file.nome||'Arquivo');link.className='study-watch';wrap.append(link);}card.append(wrap);}
 }else if(type==='image'){
-const valueString=String(value);let allowed=/^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(valueString);
+const valueString=String(value);let allowed=window.GESTAO_STORAGE_REF?.(valueString)||/^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(valueString);
 try{allowed=allowed||new URL(valueString).protocol==='https:'}catch{}
 if(allowed){const img=document.createElement('img');img.src=valueString;img.alt=label+' — '+(row.guardiao||row.orixa||'ponto riscado');img.loading='lazy';img.style.cssText='display:block;max-width:100%;max-height:650px;object-fit:contain;margin:12px auto';card.append(img)}
 }else {addLine(card,label,value);if(label==='Nome do axé')card.lastElementChild?.classList.add('axe-name-highlight');}
