@@ -1290,10 +1290,31 @@ window.GESTAO_STORAGE_UPLOAD=async file=>{
  if(result.data.size!==file.size||await storageHash(result.data)!==digest)throw Error('O arquivo enviado não passou na conferência.');
  return 'gestao-storage:'+digest;
 };
+const storageImageQueue=[];
+let storageImagesActive=0;
+function pumpStorageImages(){
+ while(storageImagesActive<2&&storageImageQueue.length){
+  const {img,source}=storageImageQueue.shift();
+  if(!img.isConnected||img.getAttribute('src')!==source)continue;
+  storageImagesActive++;
+  window.GESTAO_STORAGE_OPEN(source).then(url=>{if(img.isConnected&&img.getAttribute('src')===source)img.src=url;}).catch(()=>{if(img.getAttribute('src')===source)img.alt='Arquivo privado indisponível. Atualize para tentar novamente.';}).finally(()=>{storageImagesActive--;pumpStorageImages();});
+ }
+}
+function queueStorageImage(img){
+ const source=img.getAttribute('src');
+ if(!img.isConnected||!storageRef.test(source||'')||img.dataset.storageLoading===source)return;
+ img.dataset.storageLoading=source;storageImageQueue.push({img,source});pumpStorageImages();
+}
+const storageObserved=new WeakMap();
+const storageImageObserver=typeof IntersectionObserver==='function'?new IntersectionObserver(entries=>{
+ for(const entry of entries){if(entry.isIntersecting){storageImageObserver.unobserve(entry.target);queueStorageImage(entry.target);}}
+},{rootMargin:'150px'}):null;
 function resolveStorageImages(){
  for(const img of document.querySelectorAll('img[src^="gestao-storage:"]')){
-  if(img.dataset.storageLoading)continue;img.dataset.storageLoading='1';const source=img.getAttribute('src');
-  window.GESTAO_STORAGE_OPEN(source).then(url=>{if(img.isConnected&&img.getAttribute('src')===source)img.src=url;}).catch(()=>{img.alt='Arquivo privado indisponível. Atualize para tentar novamente.';});
+  const source=img.getAttribute('src');
+  if(img.dataset.storageLoading===source||storageObserved.get(img)===source)continue;
+  storageObserved.set(img,source);
+  if(storageImageObserver)storageImageObserver.observe(img);else queueStorageImage(img);
  }
 }
 let imageQueued=false;new MutationObserver(()=>{if(!imageQueued){imageQueued=true;queueMicrotask(()=>{imageQueued=false;resolveStorageImages();});}}).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['src']});
