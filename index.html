@@ -177,7 +177,9 @@ html,body,nav,#nav,.portal-medium .medium-nav{scrollbar-color:#ffd900 #f8f4ef;sc
 /* Storage upgrade: migrate only after IndexedDB commits successfully. */
 window.GESTAO_STORAGE_READY=(async()=>{
 const cache=new Map();
-if(location.hostname==='7d2jht876v-max.github.io'){
+const cloudHosted=location.hostname==='7d2jht876v-max.github.io';
+const durableIphone=cloudHosted&&/iPhone/i.test(navigator.userAgent);
+if(cloudHosted){
  const storage={
   keys:()=>Array.from(cache.keys()),
   getItem:key=>cache.get(String(key))??null,
@@ -190,15 +192,15 @@ if(location.hostname==='7d2jht876v-max.github.io'){
  style.textContent='html[data-cloud-locked] main > :not(#cloud-access){display:none!important}';
  document.head.append(style);
  document.documentElement.dataset.cloudLocked='';
- window.GESTAO_STORAGE=storage;
+ if(!durableIphone){window.GESTAO_STORAGE=storage;
  window.GESTAO_STORAGE_FLUSH=storage.flush;
- return storage;
+ return storage;}
 }
 const native=window.localStorage;let db;
 const managed=key=>/^gestao[-_]/i.test(String(key));
 try{
 const openStorage=version=>new Promise((resolve,reject)=>{
- const name='gestao-umbanda-storage-v1';
+ const name=durableIphone?'gestao-umbanda-cloud-recovery-v2':'gestao-umbanda-storage-v1';
  const request=version===undefined?indexedDB.open(name):indexedDB.open(name,version);
  let blocked=false;
  request.onupgradeneeded=()=>{if(!request.result.objectStoreNames.contains('values'))request.result.createObjectStore('values');};
@@ -214,7 +216,7 @@ if(!connection.objectStoreNames.contains('values')){
 }
 db=connection;
 await new Promise((resolve,reject)=>{const tx=db.transaction('values','readonly'),request=tx.objectStore('values').openCursor();request.onsuccess=()=>{const cursor=request.result;if(cursor){cache.set(cursor.key,cursor.value);cursor.continue();}};tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);});
-const legacy=[];for(let i=0;i<native.length;i++){const key=native.key(i);if(managed(key)&&!cache.has(key))legacy.push([key,native.getItem(key)]);}
+const legacy=[];for(let i=0;!durableIphone&&i<native.length;i++){const key=native.key(i);if(managed(key)&&!cache.has(key))legacy.push([key,native.getItem(key)]);}
 if(legacy.length){await new Promise((resolve,reject)=>{const tx=db.transaction('values','readwrite');for(const [key,value] of legacy)tx.objectStore('values').put(value,key);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);});for(const [key,value] of legacy){cache.set(key,value);if(native.getItem(key)===value)native.removeItem(key);}}
 let tail=Promise.resolve(),failure=null;
 const showError=error=>{let note=document.getElementById('storage-error');if(!note){note=document.createElement('div');note.id='storage-error';note.setAttribute('role','alert');note.style.cssText='position:sticky;top:0;z-index:10000;padding:16px;background:#fff0ed;color:#922;border:2px solid #a33';document.body.prepend(note);}note.textContent='Não foi possível gravar os dados. Mantenha esta página aberta e faça um backup pelo botão Exportar. '+(error?.name==='QuotaExceededError'?'O armazenamento disponível está cheio.':'Tente salvar novamente.');};
@@ -233,7 +235,7 @@ async flush(){await tail;if(failure)throw failure;}
 window.GESTAO_STORAGE=storage;window.GESTAO_STORAGE_FLUSH=()=>storage.flush();
 if(navigator.storage?.persist)void navigator.storage.persist().catch(()=>{});
 return storage;
-}catch(error){if(!native.getItem('gestao-umbanda-v1')){const note=document.createElement('div');note.setAttribute('role','alert');note.textContent='Falha ao iniciar o armazenamento ('+(error?.name||'Erro')+'): '+(error?.message||'O navegador não informou detalhes.')+' Preserve os dados do site e informe esta mensagem.';note.style.cssText='padding:24px;background:#fff0ed;color:#922;font-size:18px';document.body.prepend(note);throw error;}window.GESTAO_STORAGE=native;window.GESTAO_STORAGE_FLUSH=async()=>{};return native;}
+}catch(error){if(durableIphone||!native.getItem('gestao-umbanda-v1')){const note=document.createElement('div');note.setAttribute('role','alert');note.textContent='Falha ao iniciar o armazenamento ('+(error?.name||'Erro')+'): '+(error?.message||'O navegador não informou detalhes.')+' Preserve os dados do site e informe esta mensagem.';note.style.cssText='padding:24px;background:#fff0ed;color:#922;font-size:18px';document.body.prepend(note);throw error;}window.GESTAO_STORAGE=native;window.GESTAO_STORAGE_FLUSH=async()=>{};return native;}
 })();
 </script>
 <script>
@@ -734,7 +736,7 @@ if(!input.isConnected)return;debtAttachmentDraft.push(...added);drawDebtAttachme
 
 
 
-const protectedForms=['📋 Escala de axé para a mesa Exu','🕯️ Camarinhas','📎 Formulário de cadastro de médiuns','📋 Inadimplências','📢 Comunicados','🎓 Estudos'];
+const protectedForms=['🌿 Axés','📅 Axés da semana','📋 Escala de axé para a mesa Exu','🕯️ Camarinhas','📎 Formulário de cadastro de médiuns','📋 Inadimplências','📢 Comunicados','🎓 Estudos'];
 const formDraftKey=section=>KEY+'-form-draft-'+encodeURIComponent(section);
 let skipDraftCapture=false;
 function captureProtectedDraft(){
@@ -1885,6 +1887,7 @@ const pendingSync=!desktopAdmin&&!!localStorage.getItem(localKey+'-auto-sync-pen
  const pendingOwner=localStorage.getItem(localKey+'-pending-auth-owner');
  if(pendingSync&&((pendingOwner&&pendingOwner!==user.id)||(!pendingOwner&&!knownBase))){role=null;setAccess(false);msg('Há alterações locais pendentes de outra sessão ou sem base confirmada. Entre com a conta original. Nenhum dado foi substituído.');formLogin();return;}
  activeAdminId=user.id;
+ if(pendingSync)msg('Alterações recuperadas neste aparelho. Aguardando confirmação da nuvem.');
  if((window.GESTAO_CLOUD_ONLY||desktopAdmin)&&!pendingSync){
  setAccess(false);
  msg('Carregando cadastros e anexos da nuvem…');
@@ -1904,6 +1907,8 @@ const pendingSync=!desktopAdmin&&!!localStorage.getItem(localKey+'-auto-sync-pen
  if(!detail.result?.ok)throw Error('Não foi possível abrir os cadastros.');
  localStorage.setItem(baseKey,JSON.stringify(row.conteudo));
  localStorage.setItem(baseKey+'-remote-version',row.atualizado_em);
+ safeSyncRemoveItem(baseKey+'-record-index-v1');
+ if(window.GESTAO_STORAGE_FLUSH)await window.GESTAO_STORAGE_FLUSH();
  if(!desktopAdmin)safeSyncRemoveItem(localKey+'-auto-sync-pending');
 }
 setAccess(true);msg(localNotebookSync?'Conectado: '+user.email+' • Administrador. Use Sincronizar para atualizar o iPhone e o notebook.':'Conectado: '+user.email+' • Dados carregados. Alterações são enviadas automaticamente à nuvem.');
@@ -2056,6 +2061,7 @@ function safeSyncRemoveItem(key){
 }
 async function synchronizeDevices(push=false,manual=false){
  if(desktopAdmin)push=false;
+ else if(localStorage.getItem(localKey+'-auto-sync-pending'))push=true;
  if(manual)safeSyncRemoveItem(localKey+'-sync-retry-after');
  if(Date.now()<Number(localStorage.getItem(localKey+'-sync-retry-after')||0))return;
  if(role!=='admin'||deviceSyncBusy||mediumPublishBusy||(!push&&window.GESTAO_UNSAVED_FORM))return;
@@ -2155,9 +2161,8 @@ async function synchronizeDevices(push=false,manual=false){
    safeSyncRemoveItem(uploadKey);
    if(window.GESTAO_STORAGE_FLUSH)await window.GESTAO_STORAGE_FLUSH();
    if(writtenVersion)row={...(row||{}),atualizado_em:writtenVersion};
-   if(pendingAtStart&&localStorage.getItem(localKey+'-auto-sync-pending')===pendingAtStart)safeSyncRemoveItem(localKey+'-auto-sync-pending');
   }
-  if(push&&pendingAtStart&&localStorage.getItem(localKey+'-auto-sync-pending')===pendingAtStart)safeSyncRemoveItem(localKey+'-auto-sync-pending');
+  if(!push&&!desktopAdmin&&localStorage.getItem(localKey+'-auto-sync-pending'))return;
   const latest=JSON.parse(localStorage.getItem(localKey)||'{}');
   if(local._sync_financial_status){latest._sync_financial_status={};for(const suffix of Object.keys(local._sync_financial_status)){try{latest._sync_financial_status[suffix]=JSON.parse(localStorage.getItem(localKey+suffix)||'{}')}catch{}}}
   const applied=desktopAdmin?remote:mergeDeviceData(merged.data,latest,local).data;
@@ -2175,6 +2180,7 @@ async function synchronizeDevices(push=false,manual=false){
   if(row?.atualizado_em)localStorage.setItem(versionKey,row.atualizado_em);
   if(push){
    if(window.GESTAO_STORAGE_FLUSH)await bounded(window.GESTAO_STORAGE_FLUSH(),'A gravação neste aparelho');
+   if(pendingAtStart&&localStorage.getItem(localKey+'-auto-sync-pending')===pendingAtStart){safeSyncRemoveItem(localKey+'-auto-sync-pending');if(window.GESTAO_STORAGE_FLUSH)await window.GESTAO_STORAGE_FLUSH();}
    msg('Cadastros enviados. Finalizando fichas de radiestesia…');
    let radioPending=false;
    if(window.GESTAO_RADIO_SYNC)try{await bounded(window.GESTAO_RADIO_SYNC(),'A sincronização da radiestesia',15000);}catch{radioPending=true;}
@@ -2182,7 +2188,7 @@ async function synchronizeDevices(push=false,manual=false){
    msg((localStorage.getItem(localKey+'-auto-sync-pending')?'Outra alteração aguarda envio.':'Salvo na nuvem.')+(merged.conflicts?' Edições diferentes foram preservadas em cópias.':'')+((radioPending||(radio&&!radio.startsWith('Sincronizado com')))?' Confira também o estado da sincronização na Radiestesia.':''));
   }
  }catch(error){
- localStorage.setItem(localKey+'-sync-retry-after',String(Date.now()+300000));
+ localStorage.setItem(localKey+'-sync-retry-after',String(Date.now()+(error.code==='40001'?5000:300000)));
  if(push)msg('Sincronização pendente: '+errorText(error)+'. Dados e partes enviadas preservados. Nova tentativa automática em 5 minutos; o botão Sincronizar permite tentar antes.');
 }
  finally{deviceSyncBusy=false;if(button)button.disabled=false;}
@@ -2209,6 +2215,7 @@ setInterval(resumeDeviceSync,60000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)resumeDeviceSync();});
 window.addEventListener('gestao-dados-salvos',()=>{
  if(desktopAdmin)return;
+ if(activeAdminId)localStorage.setItem(localKey+'-pending-auth-owner',activeAdminId);
  if(window.GESTAO_CLOUD_ONLY)msg('Alteração aguardando confirmação da nuvem. Mantenha esta página aberta.');
  clearTimeout(autoSyncTimer);
  autoSyncTimer=setTimeout(()=>{
@@ -2244,7 +2251,7 @@ async function recoverFoundData(){
  feedback.textContent=detail.result.added?detail.result.added+' registro(s) recuperado(s) neste aparelho. Os dados que já estavam salvos foram mantidos.':'Os registros encontrados já estão disponíveis neste aparelho.';
  }catch(error){feedback.textContent='Recuperação pendente: '+error.message;}
 }
-async function logout(){if(window.GESTAO_CLOUD_ONLY&&(localStorage.getItem(localKey+'-auto-sync-pending')||window.GESTAO_RADIO_DIRTY)){msg('Aguarde a confirmação da gravação antes de sair.');return;}setAccess(false);await client.auth.signOut();if(window.GESTAO_CLOUD_ONLY){location.reload();return;}await refresh()}
+async function logout(){if(window.GESTAO_CLOUD_ONLY&&(localStorage.getItem(localKey+'-auto-sync-pending')||window.GESTAO_RADIO_DIRTY)){msg('Aguarde a confirmação da gravação antes de sair.');return;}setAccess(false);await client.auth.signOut();if(window.GESTAO_CLOUD_ONLY){if(/iPhone/i.test(navigator.userAgent)){for(const key of localStorage.keys())if(/^gestao[-_]/i.test(key))localStorage.removeItem(key);if(window.GESTAO_STORAGE_FLUSH)await window.GESTAO_STORAGE_FLUSH();}location.reload();return;}await refresh()}
 async function load(){msg('Consultando nuvem…');const {data:row,error}=await client.from('gestao_dados').select('conteudo,atualizado_em').eq('id','templo').maybeSingle();if(error){msg('Falha ao consultar. Execute o SQL de configuração: '+errorText(error));return;}if(!row){msg('Ainda não há dados na nuvem. O administrador deve enviar um backup.');return;}if(!confirm('Substituir os dados deste aparelho pelos dados da nuvem? Faça um backup local antes.')){await refresh();return;}localStorage.setItem(localKey,JSON.stringify(row.conteudo));location.reload()}
 async function upload(){
  if(role!=='admin')return;
