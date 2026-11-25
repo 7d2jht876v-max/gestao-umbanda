@@ -2181,6 +2181,9 @@ async function synchronizeDevices(push=false,manual=false){
    let transfer;try{transfer=JSON.parse(localStorage.getItem(uploadKey)||'null')}catch{}
    if(!transfer||transfer.digest!==digest||transfer.expected!==expected||!Number.isInteger(transfer.next)||transfer.next<0||!transfer.started||Date.now()-transfer.started>86400000){transfer={id:crypto.randomUUID(),digest,expected,next:0,started:Date.now()};}
    const size=196608,total=Math.ceil(bytes.length/size);
+   // Persist the transfer identity before the first network request, including if its response is lost.
+   localStorage.setItem(uploadKey,JSON.stringify(transfer));
+   if(window.GESTAO_STORAGE_FLUSH)await bounded(window.GESTAO_STORAGE_FLUSH(),'A preparação do envio');
    const partRPC=async(name,args)=>{
     for(let attempt=0;attempt<4;attempt++){
      const abort=new AbortController();let timer;
