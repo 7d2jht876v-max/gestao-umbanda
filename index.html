@@ -2046,6 +2046,19 @@ function mergeDeviceData(remote,local,base){
   }else{throw Error('Edição simultânea em '+key+'. Confira o valor na nuvem.');}
  }
  for(const [tab,ids] of Object.entries(deleted))if(Array.isArray(result[tab]))result[tab]=result[tab].filter(r=>!r||!ids[String(r.id)]);
+ // Keep one identical monthly record; prefer a stable ID, without discarding differing amounts or statuses.
+ const monthlyKey='🗓️ Mensalidades';
+ if(Array.isArray(result[monthlyKey])){
+  const seen=new Map(), rows=[];
+  for(const row of result[monthlyKey]){
+   if(!row||typeof row!=='object'){rows.push(row);continue;}
+   const body=Object.fromEntries(Object.entries(row).filter(([k])=>k!=='id'));
+   const key=syncCanonical(body);
+   if(!seen.has(key)){seen.set(key,rows.length);rows.push(row);continue;}
+   const i=seen.get(key);if(!rows[i].id&&row.id)rows[i]=row;
+  }
+  result[monthlyKey]=rows;
+ }
  return{data:result,conflicts};
 }
 
