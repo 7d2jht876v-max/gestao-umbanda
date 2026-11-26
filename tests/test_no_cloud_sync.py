@@ -16,7 +16,7 @@ const html = readFileSync('index.html', 'utf8');
 const scripts = [...html.matchAll(/<script\\b[^>]*>([\\s\\S]*?)<\\/script>/gi)].map(match => match[1]);
 for (const script of scripts) new vm.Script(script);
 const context = vm.createContext({
-  window: {}, location: {hostname: '7d2jht876v-max.github.io'},
+  window: {}, navigator: {userAgent: 'Desktop'}, location: {hostname: '7d2jht876v-max.github.io'},
   document: {createElement: () => ({}), head: {append() {}}, documentElement: {dataset: {}}}
 });
 const storageScript = scripts.find(script => script.includes('window.GESTAO_STORAGE_READY='));
