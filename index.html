@@ -799,7 +799,9 @@ folderNames.forEach((name,index)=>{
  const status=document.createElement('p');status.setAttribute('role','status');
  const list=document.createElement('div');
  const draw=()=>{
- const rows=(data[sectionKey]||[]).filter(r=>r.pasta===folder);
+ const rows=(data[sectionKey]||[]).filter(r=>String(r.pasta)===folder);
+ const count=rows.reduce((n,r)=>n+(Array.isArray(r.anexos)?r.anexos.length:0),0);
+ summary.textContent='📁 '+name+' — '+count+' arquivo(s)';
  list.replaceChildren();
  if(!rows.length){list.innerHTML='<p class="muted">Nenhum anexo nesta pasta.</p>';return;}
  for(const row of rows)for(const [index,attachment] of (Array.isArray(row.anexos)?row.anexos:[]).entries()){
@@ -2133,13 +2135,14 @@ async function synchronizeDevices(push=false,manual=false){
   const indexKey=baseKey+'-record-index-v1';
   let knownIndex={};try{knownIndex=JSON.parse(localStorage.getItem(indexKey)||'{}')}catch{}
   let receivedIndex=null;
-  if(!push&&cloudHead?.atualizado_em&&localStorage.getItem(versionKey)===cloudHead.atualizado_em)return;
+  if(!manual&&!push&&cloudHead?.atualizado_em&&localStorage.getItem(versionKey)===cloudHead.atualizado_em)return;
   if(!cloudHead)row=null;
-  else if(localStorage.getItem(versionKey)===cloudHead.atualizado_em&&Object.keys(base).length){
+  else if(!manual&&localStorage.getItem(versionKey)===cloudHead.atualizado_em&&Object.keys(base).length){
    row={conteudo:base,atualizado_em:cloudHead.atualizado_em};
   }else{
    const seed=Object.keys(base).length?base:JSON.parse(localStorage.getItem(localKey)||'{}');
-   if(!Object.keys(knownIndex).length)knownIndex=await createSyncIndex(seed);
+   // Derive the advertised index from the actual seed, never from a stale cached index.
+   knownIndex=await createSyncIndex(seed);
    const readPart=async numero=>{
     const {data,error}=await bounded(client.rpc('ler_gestao_delta',{conhecido:knownIndex,numero,versao_esperada:cloudHead.atualizado_em}).abortSignal(controller.signal),'A leitura das alterações');
     if(error)throw error;if(!data)throw Error('Leitura incompleta.');return data;
@@ -2160,6 +2163,13 @@ async function synchronizeDevices(push=false,manual=false){
    if(!patch.sets||!patch.rows)throw Error('Alterações inválidas.');
    row={conteudo:syncRemoteFromIndex(seed,patch,first.indice),atualizado_em:first.versao};
    receivedIndex=first.indice;
+   const exerciseKey='📂 Exercícios das camarinhas';
+   const actualExerciseIndex=await createSyncIndex({[exerciseKey]:row.conteudo[exerciseKey]||[]});
+   if(syncCanonical(actualExerciseIndex[exerciseKey])!==syncCanonical(first.indice[exerciseKey])){
+    msg('Conferindo a cópia completa: os anexos não coincidem com o índice da nuvem…');
+    row=await readCloudSnapshot(user.id);
+    receivedIndex=await createSyncIndex(row.conteudo);
+   }
   }
   const remote=row?.conteudo||{},local=JSON.parse(localStorage.getItem(localKey)||'{}');
   const aux={};
@@ -2237,7 +2247,7 @@ async function synchronizeDevices(push=false,manual=false){
   }
  }catch(error){
  localStorage.setItem(localKey+'-sync-retry-after',String(Date.now()+(error.code==='40001'?5000:300000)));
- if(push)msg('Sincronização pendente: '+errorText(error)+'. Dados e partes enviadas preservados. Nova tentativa automática em 5 minutos; o botão Sincronizar permite tentar antes.');
+ if(push||manual)msg('Sincronização pendente: '+errorText(error)+'. Dados e partes enviadas preservados. Nova tentativa automática em 5 minutos; o botão Sincronizar permite tentar antes.');
 }
  finally{deviceSyncBusy=false;if(button)button.disabled=false;}
 }
